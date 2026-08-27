@@ -14,3 +14,6 @@
 #define WEATHER_LAT  "22.54"
 #define WEATHER_LON  "114.05"
 #define WEATHER_CITY "Shenzhen"
+
+// Bambu 实体前缀（HA 里打印机实体的前缀，形如 sensor.a1_XXXX；本地填实际值）
+#define HA_ENT_PREF  "sensor.a1_CHANGEME_"

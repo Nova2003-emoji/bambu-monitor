@@ -38,7 +38,8 @@ extern NTPClient timeClient;            // bambu-monitor.ino 定义
 
 // HA 地址与实体前缀（token 见 config.h，不再硬编码）
 #define HA_HOST   "http://homeassistant.local:8123"
-#define HA_ENT     "sensor.a1_03919d552104522_"
+// Bambu 实体前缀：改从 config.h 读（本地真值；config.example.h 为占位，避免序列号入库）
+#define HA_ENT     HA_ENT_PREF
 
 #define US_FETCH_MS    15000   // 拉取/渲染周期（不深睡，loop 常驻节拍）
 
