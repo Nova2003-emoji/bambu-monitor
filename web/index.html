@@ -127,8 +127,8 @@ async function doFlash(){
   try {
     log('初始化设备...');
     await loader.initialize();
-    try { await loader.setBaudrate(921600); log('波特率 → 921600（加速）'); }
-    catch(e){ log('提速失败，保持 115200'); }
+    // 默认 115200 最稳（921600 在 CH340 上易丢包导致状态字节错乱）
+    log('以 115200 波特率写入，4MB 约 6-8 分钟，请耐心等待…');
     log('上传加速桩...');
     await loader.runStub();
     log('写入固件（请勿拔线）...');
