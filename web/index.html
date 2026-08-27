@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bambu Monitor — 刷写 & 配网</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,'PingFang SC',sans-serif;background:#f5f7fa;color:#333;padding:16px;max-width:560px;margin:0 auto}
+h1{font-size:20px;margin-bottom:4px}
+.sub{color:#888;font-size:13px;margin-bottom:20px}
+.card{background:#fff;border-radius:14px;padding:18px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.card h2{font-size:15px;margin-bottom:12px;color:#0969da}
+label{display:block;font-size:13px;color:#666;margin:10px 0 4px}
+input{width:100%;padding:9px 10px;border:1px solid #ddd;border-radius:8px;font-size:14px}
+.row{display:flex;gap:8px}
+.row input{flex:1}
+button{padding:10px 14px;border:none;border-radius:8px;font-size:14px;cursor:pointer}
+.btn-primary{background:#0969da;color:#fff;width:100%;margin-top:6px}
+.btn-ghost{background:#eef2f6;color:#333}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+#log{background:#1e1e1e;color:#7ee787;font-size:12px;padding:10px;border-radius:8px;margin-top:12px;max-height:160px;overflow-y:auto;display:none;white-space:pre-wrap;font-family:monospace}
+.tip{font-size:12px;color:#888;margin-top:8px;line-height:1.6}
+esp-web-install-button{display:block}
+esp-web-install-button::part(button){background:#0969da;color:#fff;border:none;border-radius:10px;padding:14px 20px;font-size:16px;cursor:pointer;width:100%}
+</style>
+</head>
+<body>
+<h1>🖥 Bambu Monitor 刷写 & 配网</h1>
+<div class="sub">一步刷固件，一步配网络。全程走浏览器 Web Serial，数据只到你的设备，不上传任何服务器。</div>
+
+<div class="card">
+  <h2>① 刷写固件</h2>
+  <esp-web-install-button manifest="./manifest.json">
+    <button slot="activate" class="btn-primary">🔌 选择串口并刷写固件</button>
+    <span slot="unsupported">请用 Chrome / Edge 打开（需要 Web Serial）</span>
+    <span slot="not-allowed">请用 https 页面访问（GitHub Pages 已满足）</span>
+  </esp-web-install-button>
+  <div class="tip">点击后浏览器弹出串口选择 → 选接入设备的 USB 串口 → 等待进度条完成（固件为 GitHub Release 最新 merged.bin）。</div>
+</div>
+
+<div class="card">
+  <h2>② 配网 & 令牌</h2>
+  <label>WiFi 名称</label>
+  <input id="ssid" placeholder="你的 WiFi SSID">
+  <label>WiFi 密码</label>
+  <input id="pass" placeholder="WiFi 密码">
+  <label>Home Assistant 长期令牌（HA 设置 → 长期访问令牌）</label>
+  <input id="token" placeholder="eyJhbGciOiJ...">
+  <label>城市（自动查经纬度，如 南京 / 深圳）</label>
+  <div class="row">
+    <input id="city" placeholder="城市名">
+    <button class="btn-ghost" onclick="geocode()">查</button>
+  </div>
+  <div class="row">
+    <input id="lat" placeholder="纬度(自动)">
+    <input id="lon" placeholder="经度(自动)">
+  </div>
+  <div style="display:flex;gap:8px;margin-top:12px">
+    <button class="btn-ghost" onclick="openSerial()">串口连接</button>
+    <button class="btn-primary" onclick="sendCfg()" id="sendBtn" disabled>💾 保存配置</button>
+  </div>
+  <div id="cfgStatus" class="tip">连接串口后可保存配置；保存后设备会提示重启。</div>
+  <div id="log"></div>
+</div>
+
+<script type="module" src="https://unpkg.com/esp-web-flasher@2/dist/esp-web-flasher.bundle.js"></script>
+<script>
+let port = null, writer = null;
+
+function log(msg){ const el=document.getElementById('log'); el.style.display='block'; el.textContent += msg + '\n'; el.scrollTop = el.scrollHeight; }
+
+// 串口连接（配网用）
+async function openSerial(){
+  if (!('serial' in navigator)) { alert('此浏览器不支持 Web Serial，请用 Chrome/Edge'); return; }
+  try {
+    port = await navigator.serial.requestPort();
+    await port.open({ baudRate: 115200 });
+    writer = port.writable.getWriter();
+    document.getElementById('sendBtn').disabled = false;
+    log('串口已连接 ✓');
+  } catch(e){ log('连接失败: ' + e); }
+}
+
+// 城市 → 经纬度（Open-Meteo，免 key，CORS 允许）
+async function geocode(){
+  const city = document.getElementById('city').value.trim();
+  if (!city) return;
+  try {
+    const r = await fetch('https://geocoding-api.open-meteo.com/v1/search?name=' + encodeURIComponent(city) + '&count=1&countryCode=CN&language=zh');
+    const d = await r.json();
+    if (d && d.results && d.results[0]) {
+      document.getElementById('lat').value = d.results[0].latitude.toFixed(5);
+      document.getElementById('lon').value = d.results[0].longitude.toFixed(5);
+      if (!document.getElementById('ssid').value) document.getElementById('city').value = d.results[0].name;
+      log('城市 → ' + d.results[0].name + ' ' + d.results[0].latitude.toFixed(5) + ',' + d.results[0].longitude.toFixed(5));
+    } else log('未找到城市');
+  } catch(e){ log('查城市失败: ' + e); }
+}
+
+// 发送 cfg 配置命令到设备串口
+async function sendCfg(){
+  if (!port || !writer) { alert('请先连接串口'); return; }
+  const parts = [];
+  const ssid = document.getElementById('ssid').value.trim();
+  const pass = document.getElementById('pass').value.trim();
+  const token = document.getElementById('token').value.trim();
+  const city = document.getElementById('city').value.trim();
+  const lat = document.getElementById('lat').value.trim();
+  const lon = document.getElementById('lon').value.trim();
+  if (ssid)  parts.push('ssid=' + ssid);
+  if (ssid && pass) parts.push('pass=' + pass);
+  if (token) parts.push('token=' + token);
+  if (city)  parts.push('city=' + city);
+  if (lat)   parts.push('lat=' + lat);
+  if (lon)   parts.push('lon=' + lon);
+  if (!parts.length) { alert('请至少填一项'); return; }
+  try {
+    const cmd = 'cfg ' + parts.join(' ') + '\n';
+    await writer.write(new TextEncoder().encode(cmd));
+    log('已发送: cfg ' + parts.map(p=>p.split('=')[0]+'=***').join(' '));
+    await new Promise(r=>setTimeout(r,800));
+    await writer.write(new TextEncoder().encode('h\n'));   // 触发固件输出帮助，便于看到回显
+    log('发送完成。设备串口会回显 [CFG] saved…；如需要立即生效，可下一步发 r 重启。');
+  } catch(e){ log('发送失败: ' + e); }
+}
+
+// 重启设备（使配置生效）
+async function reboot(){
+  if (!port || !writer) { alert('请先连接串口'); return; }
+  try { await writer.write(new TextEncoder().encode('r\n')); log('已发送重启 r… 设备将重启并按新配置连接。'); }
+  catch(e){ log('发送失败: ' + e); }
+}
+</script>
+</body>
+</html>
