@@ -95,7 +95,12 @@ async function flashConnect(){
   try {
     log('请求串口（请在弹出的列表选设备）...');
     const { connect } = await import('./vendor2/dist/index.js');
-    loader = await connect({ log: (m)=>log('  ' + m) });
+    loader = await connect({
+      log:   (m)=>log('  ' + m),
+      debug: (m)=>{},
+      error: (m)=>log('⚠ ' + m),
+      info:  (m)=>log('  ' + m),
+    });
     log('设备已连接 ✓');
   } catch(e){ log('连接失败: ' + (e.message||e)); }
   maybeEnableFlash();
