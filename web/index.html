@@ -50,7 +50,7 @@ button{padding:10px 14px;border:none;border-radius:8px;font-size:14px;cursor:poi
         <div class="step">
           <div class="n">1</div>
           <div class="info">连接设备的 USB 串口</div>
-          <button class="btn-ghost" onclick="flashConnect()">🔌 连接设备</button>
+          <button class="btn-ghost" onclick="connectSerial()">🔌 串口连接</button>
         </div>
         <div class="step">
           <div class="n">2</div>
@@ -88,7 +88,7 @@ button{padding:10px 14px;border:none;border-radius:8px;font-size:14px;cursor:poi
         <input id="lon" placeholder="经度">
       </div>
       <div class="actions">
-        <button class="btn-ghost" onclick="openSerial()">串口连接</button>
+        <button class="btn-ghost" onclick="connectSerial()">🔌 串口连接</button>
         <button class="btn-ghost" onclick="readCfg()">📖 读取配置</button>
         <button class="btn-primary" onclick="sendCfg()" id="sendBtn" disabled>💾 保存配置</button>
         <button class="btn-danger" onclick="wipeCfg()">🗑 清空配置</button>
@@ -120,19 +120,19 @@ function monLog(msg){ monEl.textContent += msg; if (monEl.textContent.length > 2
 let loader = null;
 let fwData = null;
 
-async function flashConnect(){
+async function connectSerial(){
+  if (port) { log('串口已连接 ✓（无需重复连接）'); return; }
+  if (!('serial' in navigator)) { alert('此浏览器不支持 Web Serial，请用 Chrome/Edge'); return; }
   try {
     log('请求串口（请在弹出的列表选设备）...');
-    const { connect } = await import('./vendor2/dist/index.js');
-    loader = await connect({
-      log:   (m)=>monLog(m + '\n'),
-      debug: (m)=>monLog(m + '\n'),
-      error: (m)=>{ monLog(m + '\n'); log('⚠ ' + m); },
-      info:  (m)=>monLog(m + '\n'),
-    });
-    log('设备已连接 ✓（刷写日志见右侧监视器）');
+    port = await navigator.serial.requestPort();
+    await port.open({ baudRate: 115200 });
+    writer = port.writable.getWriter();
+    document.getElementById('sendBtn').disabled = false;
+    log('串口已连接 ✓（设备回显见右侧监视器；刷写会自动独占端口）');
+    lineBuf = '';
+    readCfgLoop();
   } catch(e){ log('连接失败: ' + (e.message||e)); }
-  maybeEnableFlash();
 }
 
 document.getElementById('fwFile').addEventListener('change', async (e)=>{
@@ -156,6 +156,22 @@ async function doFlash(){
   const btn = document.getElementById('flashBtn');
   btn.disabled = true;
   try {
+    // 统一连接：停配网监视并让 esptool 独占同一端口（无需重新选串口）
+    cfgRun = false;
+    try { await cfgReader?.cancel(); } catch(e){}
+    try { writer?.releaseLock(); } catch(e){}
+    writer = null;
+    const { ESPLoader } = await import('./vendor2/dist/index.js');
+    loader = new ESPLoader(port, {
+      log:   (m)=>monLog(m + '
+'),
+      debug: (m)=>monLog(m + '
+'),
+      error: (m)=>{ monLog(m + '
+'); log('⚠ ' + m); },
+      info:  (m)=>monLog(m + '
+'),
+    });
     log('初始化设备...');
     await loader.initialize();
     log('上传加速桩...');
@@ -165,25 +181,18 @@ async function doFlash(){
     await stub.flashFinish();
     log('✅ 刷写完成！设备将重启，可到 ② 配网。');
   } catch(e){ log('❌ 刷写失败: ' + (e.message||e)); }
-  finally { btn.disabled = false; }
+  finally {
+    btn.disabled = false;
+    // 烧写完恢复同一端口的配网监视
+    try { await port.close(); } catch(e){}
+    try { await port.open({ baudRate: 115200 }); writer = port.writable.getWriter(); lineBuf=''; readCfgLoop(); log('串口已恢复配网监视'); }
+    catch(e){ log('烧写后串口恢复失败，请刷新页面重连'); }
+  }
 }
 
 /* ---------- ② 配网 ---------- */
 let port = null, writer = null, cfgReader = null, cfgRun = false;
 let lineBuf = '';
-
-async function openSerial(){
-  if (!('serial' in navigator)) { alert('此浏览器不支持 Web Serial，请用 Chrome/Edge'); return; }
-  try {
-    port = await navigator.serial.requestPort();
-    await port.open({ baudRate: 115200 });
-    writer = port.writable.getWriter();
-    document.getElementById('sendBtn').disabled = false;
-    log('串口已连接 ✓（设备回显见右侧监视器）');
-    lineBuf = '';
-    readCfgLoop();
-  } catch(e){ log('连接失败: ' + e); }
-}
 
 // 配网模式读循环：设备输出实时进监视器；[CFGD] 行解析回填表单
 async function readCfgLoop(){
