@@ -6,7 +6,9 @@
 <title>Bambu Monitor — 刷写 & 配网</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,'PingFang SC',sans-serif;background:#f5f7fa;color:#333;padding:16px;max-width:560px;margin:0 auto}
+body{font-family:-apple-system,'PingFang SC',sans-serif;background:#f5f7fa;color:#333;padding:16px}
+.wrap{max-width:1080px;margin:0 auto;display:grid;grid-template-columns:minmax(0,600px) minmax(0,380px);gap:16px;align-items:start}
+@media (max-width:1020px){.wrap{grid-template-columns:1fr}}
 h1{font-size:20px;margin-bottom:4px}
 .sub{color:#888;font-size:13px;margin-bottom:20px}
 .card{background:#fff;border-radius:14px;padding:18px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
@@ -19,89 +21,110 @@ button{padding:10px 14px;border:none;border-radius:8px;font-size:14px;cursor:poi
 .btn-primary{background:#0969da;color:#fff}
 .btn-ghost{background:#eef2f6;color:#333}
 .btn:disabled{opacity:.5;cursor:not-allowed}
-#log{background:#1e1e1e;color:#7ee787;font-size:12px;padding:10px;border-radius:8px;margin-top:12px;max-height:180px;overflow-y:auto;white-space:pre-wrap;font-family:monospace}
+#log,#serialMon{background:#1e1e1e;color:#7ee787;font-size:12px;padding:10px;border-radius:8px;margin-top:12px;overflow-y:auto;white-space:pre-wrap;font-family:Consolas,monospace}
+#log{max-height:180px}
+#serialMon{height:420px}
 .tip{font-size:12px;color:#888;margin-top:8px;line-height:1.6;word-break:break-all}
 .steps{display:flex;flex-direction:column;gap:8px}
 .step{display:flex;align-items:center;gap:10px;background:#f8fafc;border:1px solid #ebf0f4;border-radius:10px;padding:10px 12px}
 .step .n{width:22px;height:22px;border-radius:50%;background:#0969da;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;flex:none}
 .step .info{flex:1;font-size:13px;color:#555}
 .file-btn{display:inline-block;background:#fff;border:1px dashed #b8c4d0;border-radius:8px;padding:8px 12px;font-size:13px;color:#0969da;cursor:pointer}
+.mon-head{display:flex;justify-content:space-between;align-items:center}
+.mon-head button{padding:4px 10px;font-size:12px;background:#eef2f6;color:#555;border-radius:6px}
 </style>
 </head>
 <body>
-<h1>🖥 Bambu Monitor 刷写 & 配网</h1>
-<div class="sub">先刷固件，后配网络。全程走浏览器 Web Serial，数据只到你的设备，不上传任何服务器。</div>
+<div class="wrap">
+  <div class="col">
+    <h1>🖥 Bambu Monitor 刷写 & 配网</h1>
+    <div class="sub">先刷固件，后配网络。全程走浏览器 Web Serial，数据只到你的设备，不上传任何服务器。</div>
 
-<div class="card">
-  <h2>① 刷写固件</h2>
-  <div class="steps">
-    <div class="step">
-      <div class="n">1</div>
-      <div class="info">连接设备的 USB 串口</div>
-      <button class="btn-ghost" onclick="flashConnect()">🔌 连接设备</button>
+    <div class="card">
+      <h2>① 刷写固件</h2>
+      <div class="steps">
+        <div class="step">
+          <div class="n">1</div>
+          <div class="info">连接设备的 USB 串口</div>
+          <button class="btn-ghost" onclick="flashConnect()">🔌 连接设备</button>
+        </div>
+        <div class="step">
+          <div class="n">2</div>
+          <div class="info">选择固件文件（merged.bin 或 .bin）</div>
+          <label class="file-btn">📁 选择文件
+            <input type="file" id="fwFile" accept=".bin" style="display:none">
+          </label>
+          <span id="fwName" style="font-size:12px;color:#888"></span>
+        </div>
+        <div class="step">
+          <div class="n">3</div>
+          <div class="info">写入设备（请勿中途拔线）</div>
+          <button class="btn-primary" onclick="doFlash()" id="flashBtn" disabled>⚡ 开始刷写</button>
+        </div>
+      </div>
+      <div class="tip">请用 Chrome / Edge 打开。刷写完成后建议刷新本页再进行 ② 配网。</div>
+      <div id="log"></div>
     </div>
-    <div class="step">
-      <div class="n">2</div>
-      <div class="info">选择固件文件（merged.bin 或 .bin）</div>
-      <label class="file-btn">📁 选择文件
-        <input type="file" id="fwFile" accept=".bin" style="display:none">
-      </label>
-      <span id="fwName" style="font-size:12px;color:#888"></span>
-    </div>
-    <div class="step">
-      <div class="n">3</div>
-      <div class="info">写入设备（请勿中途拔线）</div>
-      <button class="btn-primary" onclick="doFlash()" id="flashBtn" disabled>⚡ 开始刷写</button>
-    </div>
-  </div>
-  <div class="tip">请用 Chrome / Edge 打开。刷写完成后建议刷新本页再进行 ② 配网。</div>
-  <div id="log"></div>
-</div>
 
-<div class="card">
-  <h2>② 配网 & 令牌</h2>
-  <label>WiFi 名称</label>
-  <input id="ssid" placeholder="你的 WiFi SSID">
-  <label>WiFi 密码</label>
-  <input id="pass" placeholder="WiFi 密码">
-  <label>Home Assistant 长期令牌（HA 设置 → 长期访问令牌）</label>
-  <input id="token" placeholder="eyJhbGciOiJ...">
-  <label>城市（自动查经纬度，如 南京 / 深圳）</label>
-  <div class="row">
-    <input id="city" placeholder="城市名">
-    <button class="btn-ghost" onclick="geocode()">查</button>
+    <div class="card">
+      <h2>② 配网 & 令牌</h2>
+      <label>WiFi 名称</label>
+      <input id="ssid" placeholder="你的 WiFi SSID">
+      <label>WiFi 密码</label>
+      <input id="pass" placeholder="WiFi 密码">
+      <label>Home Assistant 长期令牌（HA 设置 → 长期访问令牌）</label>
+      <input id="token" placeholder="eyJhbGciOiJ...">
+      <label>城市（自动查经纬度，如 南京 / 深圳）</label>
+      <div class="row">
+        <input id="city" placeholder="城市名">
+        <button class="btn-ghost" onclick="geocode()">查</button>
+      </div>
+      <div class="row">
+        <input id="lat" placeholder="纬度(自动)">
+        <input id="lon" placeholder="经度(自动)">
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn-ghost" onclick="openSerial()">串口连接</button>
+        <button class="btn-primary" onclick="sendCfg()" id="sendBtn" disabled>💾 保存配置</button>
+        <button class="btn-ghost" onclick="reboot()">重启</button>
+      </div>
+      <div id="cfgStatus" class="tip">连接串口后可保存配置；保存后点“重启”生效。</div>
+    </div>
   </div>
-  <div class="row">
-    <input id="lat" placeholder="纬度(自动)">
-    <input id="lon" placeholder="经度(自动)">
+
+  <div class="col">
+    <div class="card">
+      <div class="mon-head">
+        <h2>📟 串口监视</h2>
+        <button onclick="document.getElementById('serialMon').textContent=''">清空</button>
+      </div>
+      <div class="tip" style="margin-top:0">设备串口原始输出实时显示（配网回显 / 刷写日志）。115200。</div>
+      <pre id="serialMon"></pre>
+    </div>
   </div>
-  <div style="display:flex;gap:8px;margin-top:12px">
-    <button class="btn-ghost" onclick="openSerial()">串口连接</button>
-    <button class="btn-primary" onclick="sendCfg()" id="sendBtn" disabled>💾 保存配置</button>
-    <button class="btn-ghost" onclick="reboot()">重启</button>
-  </div>
-  <div id="cfgStatus" class="tip">连接串口后可保存配置；保存后点“重启”生效。</div>
 </div>
 
 <script>
 const logEl = document.getElementById('log');
+const monEl = document.getElementById('serialMon');
 function log(msg){ logEl.style.display='block'; logEl.textContent += msg + '\n'; logEl.scrollTop = logEl.scrollHeight; }
+function monLog(msg){ monEl.textContent += msg; if (monEl.textContent.length > 20000) monEl.textContent = monEl.textContent.slice(-15000); monEl.scrollTop = monEl.scrollHeight; }
 
 /* ---------- ① 刷写固件（esptool-js 本地库 + 手动选文件） ---------- */
-let loader = null;      // esptool ESPLoader 实例
-let fwData = null;      // 所选固件二进制
+let loader = null;
+let fwData = null;
 
 async function flashConnect(){
   try {
     log('请求串口（请在弹出的列表选设备）...');
     const { connect } = await import('./vendor2/dist/index.js');
     loader = await connect({
-      log:   (m)=>log('  ' + m),
-      debug: (m)=>{},
-      error: (m)=>log('⚠ ' + m),
-      info:  (m)=>log('  ' + m),
+      log:   (m)=>monLog(m + '\n'),
+      debug: (m)=>monLog(m + '\n'),
+      error: (m)=>{ monLog(m + '\n'); log('⚠ ' + m); },
+      info:  (m)=>monLog(m + '\n'),
     });
-    log('设备已连接 ✓');
+    log('设备已连接 ✓（刷写日志见右侧监视器）');
   } catch(e){ log('连接失败: ' + (e.message||e)); }
   maybeEnableFlash();
 }
@@ -140,7 +163,7 @@ async function doFlash(){
 }
 
 /* ---------- ② 配网 ---------- */
-let port = null, writer = null;
+let port = null, writer = null, cfgReader = null, cfgRun = false;
 
 async function openSerial(){
   if (!('serial' in navigator)) { alert('此浏览器不支持 Web Serial，请用 Chrome/Edge'); return; }
@@ -149,8 +172,25 @@ async function openSerial(){
     await port.open({ baudRate: 115200 });
     writer = port.writable.getWriter();
     document.getElementById('sendBtn').disabled = false;
-    log('串口已连接 ✓');
+    log('串口已连接 ✓（设备回显见右侧监视器）');
+    readCfgLoop();
   } catch(e){ log('连接失败: ' + e); }
+}
+
+// 配网模式读循环：设备串口输出实时进监视器
+async function readCfgLoop(){
+  if (cfgRun) return;
+  cfgRun = true;
+  const dec = new TextDecoder();
+  try {
+    cfgReader = port.readable.getReader();
+    while (cfgRun) {
+      const { value, done } = await cfgReader.read();
+      if (done) break;
+      if (value && value.length) monLog(dec.decode(value));
+    }
+  } catch(e){ monLog('\n[串口读取结束] ' + (e.message||e) + '\n'); }
+  cfgRun = false;
 }
 
 async function geocode(){
@@ -186,9 +226,7 @@ async function sendCfg(){
   if (!parts.length) { alert('请至少填一项'); return; }
   try {
     await writer.write(new TextEncoder().encode('cfg ' + parts.join(' ') + '\n'));
-    log('已发送 cfg（' + parts.map(p=>p.split('=')[0]).join(', ') + '）→ 设备回显 [CFG] saved…');
-    await new Promise(r=>setTimeout(r,600));
-    await writer.write(new TextEncoder().encode('h\n'));
+    log('已发送 cfg（' + parts.map(p=>p.split('=')[0]).join(', ') + '）→ 设备回显见监视器');
   } catch(e){ log('发送失败: ' + e); }
 }
 
