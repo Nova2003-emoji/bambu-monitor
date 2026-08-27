@@ -74,6 +74,7 @@ jobs:
 
       - name: Generate firmware metadata (version.json)
         run: |
+          mkdir -p build
           printf '{"version":"%s","built":"%s","commit":"%s"}\n' \
             "${GITHUB_REF_NAME}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${GITHUB_SHA:0:7}" \
             > build/version.json
