@@ -32,6 +32,7 @@ label{display:block;font-size:13px;font-weight:600;color:#374151;margin:14px 0 6
 input[type=text],input[type=password]{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:14px;font-family:inherit}
 input:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(37,99,235,.12)}
 .row{display:flex;gap:8px}.row input{flex:1;min-width:0}
+.fw-meta{font-size:12px;color:var(--sub);margin-top:10px}
 .hint{font-size:12px;color:var(--sub);margin-top:6px;line-height:1.6}
 .src{display:flex;gap:8px;margin-bottom:10px}
 .src button{flex:1;padding:9px;font-size:13px;background:#fff;border:1px solid var(--line);color:var(--sub)}
@@ -83,7 +84,8 @@ input:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(37,
       <h2><span class="step-num">3</span> 刷写</h2>
       <button class="btn-big" id="flashBtn" onclick="doFlash()" disabled>⚡ 开始刷写</button>
       <div class="bar" id="bar"><div class="bar-fill" id="barFill"></div></div>
-      <div class="hint" id="flashHint">连接设备并选择固件后开始。4MB 全量约 6-8 分钟，全程勿拔线。</div>
+      <div class="fw-meta" id="fwMeta">固件版本：获取中…</div>
+      <div class="hint">连接设备并选择固件后开始。4MB 全量约 6-8 分钟，全程勿拔线。</div>
       <div id="log"></div>
     </div>
 
@@ -359,6 +361,12 @@ async function geocode(){
 }
 
 updateFlashBtn();
+
+// 读取同源固件元数据（版本/编译时间，随 Release 发布）
+fetch('firmware/version.json')
+  .then(r => r.ok ? r.json() : Promise.reject())
+  .then(v => { $('fwMeta').textContent = '固件 ' + v.version + ' · 编译于 ' + v.built.replace('T', ' ').replace('Z', ' UTC'); })
+  .catch(() => { $('fwMeta').textContent = '固件版本：未知（当前托管固件无版本信息）'; });
 </script>
 </body>
 </html>

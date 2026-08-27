@@ -86,5 +86,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: build/*.bin
+          files: |
+            build/*.bin
+            build/version.json
           generate_release_notes: true

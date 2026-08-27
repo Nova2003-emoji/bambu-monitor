@@ -30,6 +30,7 @@ jobs:
         run: |
           mkdir -p web/firmware
           curl -sL -o web/firmware/bambu-monitor.ino.merged.bin             https://github.com/Nova2003-emoji/bambu-monitor/releases/latest/download/bambu-monitor.ino.merged.bin || true
+          curl -sL -o web/firmware/version.json             https://github.com/Nova2003-emoji/bambu-monitor/releases/latest/download/version.json || true
           ls -la web/firmware
 
       - uses: actions/upload-pages-artifact@v5
