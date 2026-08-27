@@ -15,11 +15,13 @@ h1{font-size:20px;margin-bottom:4px}
 .card h2{font-size:15px;margin-bottom:12px;color:#0969da}
 label{display:block;font-size:13px;color:#666;margin:10px 0 4px}
 input{width:100%;padding:9px 10px;border:1px solid #ddd;border-radius:8px;font-size:14px}
+input:read-only{background:#f4f6f8;color:#555}
 .row{display:flex;gap:8px}
 .row input{flex:1}
 button{padding:10px 14px;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-family:inherit}
 .btn-primary{background:#0969da;color:#fff}
 .btn-ghost{background:#eef2f6;color:#333}
+.btn-danger{background:#fbe9e7;color:#c0392b}
 .btn:disabled{opacity:.5;cursor:not-allowed}
 #log,#serialMon{background:#1e1e1e;color:#7ee787;font-size:12px;padding:10px;border-radius:8px;margin-top:12px;overflow-y:auto;white-space:pre-wrap;font-family:Consolas,monospace}
 #log{max-height:180px}
@@ -30,6 +32,8 @@ button{padding:10px 14px;border:none;border-radius:8px;font-size:14px;cursor:poi
 .step .n{width:22px;height:22px;border-radius:50%;background:#0969da;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;flex:none}
 .step .info{flex:1;font-size:13px;color:#555}
 .file-btn{display:inline-block;background:#fff;border:1px dashed #b8c4d0;border-radius:8px;padding:8px 12px;font-size:13px;color:#0969da;cursor:pointer}
+.actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.sticky-card{position:sticky;top:16px}
 .mon-head{display:flex;justify-content:space-between;align-items:center}
 .mon-head button{padding:4px 10px;font-size:12px;background:#eef2f6;color:#555;border-radius:6px}
 </style>
@@ -74,26 +78,28 @@ button{padding:10px 14px;border:none;border-radius:8px;font-size:14px;cursor:poi
       <input id="pass" placeholder="WiFi 密码">
       <label>Home Assistant 长期令牌（HA 设置 → 长期访问令牌）</label>
       <input id="token" placeholder="eyJhbGciOiJ...">
-      <label>城市（自动查经纬度，如 南京 / 深圳）</label>
+      <label>城市 / 经纬度（城市名可自动查）</label>
       <div class="row">
         <input id="city" placeholder="城市名">
         <button class="btn-ghost" onclick="geocode()">查</button>
       </div>
       <div class="row">
-        <input id="lat" placeholder="纬度(自动)">
-        <input id="lon" placeholder="经度(自动)">
+        <input id="lat" placeholder="纬度">
+        <input id="lon" placeholder="经度">
       </div>
-      <div style="display:flex;gap:8px;margin-top:12px">
+      <div class="actions">
         <button class="btn-ghost" onclick="openSerial()">串口连接</button>
+        <button class="btn-ghost" onclick="readCfg()">📖 读取配置</button>
         <button class="btn-primary" onclick="sendCfg()" id="sendBtn" disabled>💾 保存配置</button>
+        <button class="btn-danger" onclick="wipeCfg()">🗑 清空配置</button>
         <button class="btn-ghost" onclick="reboot()">重启</button>
       </div>
-      <div id="cfgStatus" class="tip">连接串口后可保存配置；保存后点“重启”生效。</div>
+      <div id="cfgStatus" class="tip">连接串口后：读取配置自动填表 → 修改 → 保存 → 重启生效。清空配置会恢复出厂默认并需重新配网。</div>
     </div>
   </div>
 
   <div class="col">
-    <div class="card">
+    <div class="card sticky-card">
       <div class="mon-head">
         <h2>📟 串口监视</h2>
         <button onclick="document.getElementById('serialMon').textContent=''">清空</button>
@@ -148,12 +154,12 @@ function maybeEnableFlash(){
 async function doFlash(){
   if (!loader || !fwData){ alert('请先连接设备并选择固件'); return; }
   const btn = document.getElementById('flashBtn');
-  btn.disabled = true;                     // 防重入（重复初始化会 getReader locked）
+  btn.disabled = true;
   try {
     log('初始化设备...');
     await loader.initialize();
     log('上传加速桩...');
-    const stub = await loader.runStub();   // 必须用返回的 stub 实例烧写（状态字节 2B，ROM 实例期望 4B）
+    const stub = await loader.runStub();   // 必须用返回的 stub 实例烧写
     log('写入固件（请勿拔线），4MB 约 6-8 分钟…');
     await stub.flashData(fwData, 0, (n)=>log('  已写 ' + (n/1024).toFixed(0) + ' KB'));
     await stub.flashFinish();
@@ -164,6 +170,7 @@ async function doFlash(){
 
 /* ---------- ② 配网 ---------- */
 let port = null, writer = null, cfgReader = null, cfgRun = false;
+let lineBuf = '';
 
 async function openSerial(){
   if (!('serial' in navigator)) { alert('此浏览器不支持 Web Serial，请用 Chrome/Edge'); return; }
@@ -173,11 +180,12 @@ async function openSerial(){
     writer = port.writable.getWriter();
     document.getElementById('sendBtn').disabled = false;
     log('串口已连接 ✓（设备回显见右侧监视器）');
+    lineBuf = '';
     readCfgLoop();
   } catch(e){ log('连接失败: ' + e); }
 }
 
-// 配网模式读循环：设备串口输出实时进监视器
+// 配网模式读循环：设备输出实时进监视器；[CFGD] 行解析回填表单
 async function readCfgLoop(){
   if (cfgRun) return;
   cfgRun = true;
@@ -187,10 +195,55 @@ async function readCfgLoop(){
     while (cfgRun) {
       const { value, done } = await cfgReader.read();
       if (done) break;
-      if (value && value.length) monLog(dec.decode(value));
+      if (value && value.length) {
+        const text = dec.decode(value);
+        monLog(text);
+        lineBuf += text;
+        let idx;
+        while ((idx = lineBuf.indexOf('\n')) >= 0) {
+          const line = lineBuf.slice(0, idx).trim();
+          lineBuf = lineBuf.slice(idx + 1);
+          handleDeviceLine(line);
+        }
+      }
     }
   } catch(e){ monLog('\n[串口读取结束] ' + (e.message||e) + '\n'); }
   cfgRun = false;
+}
+
+function handleDeviceLine(line){
+  if (!line.startsWith('[CFGD] ')) return;
+  try {
+    const map = {};
+    for (const kv of line.slice(7).split(' ')) {
+      const i = kv.indexOf('=');
+      if (i > 0) map[kv.slice(0, i)] = kv.slice(i + 1);
+    }
+    if (map.ssid)  document.getElementById('ssid').value  = map.ssid;
+    if (map.pass)  document.getElementById('pass').value  = map.pass;
+    if (map.token) document.getElementById('token').value = map.token;
+    if (map.city)  document.getElementById('city').value  = map.city;
+    if (map.lat)   document.getElementById('lat').value   = map.lat;
+    if (map.lon)   document.getElementById('lon').value   = map.lon;
+    log('📖 已读取设备配置并填充表单 ✓');
+  } catch(e){}
+}
+
+async function readCfg(){
+  if (!port || !writer) { alert('请先连接串口'); return; }
+  try {
+    await writer.write(new TextEncoder().encode('cfgget\n'));
+    log('已发送 cfgget，等待设备回填表单…');
+  } catch(e){ log('发送失败: ' + e); }
+}
+
+async function wipeCfg(){
+  if (!port || !writer) { alert('请先连接串口'); return; }
+  if (!confirm('确定清空设备上的全部配置？\n（WiFi / 城市 / HA 令牌都会恢复出厂默认，需要重新配网）')) return;
+  try {
+    await writer.write(new TextEncoder().encode('cfgwipe\n'));
+    log('已发送 cfgwipe → 设备恢复默认。点“重启”生效，之后需重新配网。');
+  } catch(e){ log('发送失败: ' + e); }
 }
 
 async function geocode(){
