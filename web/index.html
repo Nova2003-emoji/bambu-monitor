@@ -3,164 +3,237 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Bambu Monitor — 刷写 & 配网</title>
+<title>Bambu Monitor — 固件刷写 & 配网</title>
 <style>
+:root{
+  --ink:#1a1d21; --sub:#6b7280; --line:#e5e7eb; --bg:#f6f7f9;
+  --brand:#2563eb; --brand-dark:#1d4ed8; --ok:#16a34a; --danger:#dc2626;
+}
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,'PingFang SC',sans-serif;background:#f5f7fa;color:#333;padding:16px}
-.wrap{max-width:1080px;margin:0 auto;display:grid;grid-template-columns:minmax(0,600px) minmax(0,380px);gap:16px;align-items:start}
-@media (max-width:1020px){.wrap{grid-template-columns:1fr}}
-h1{font-size:20px;margin-bottom:4px}
-.sub{color:#888;font-size:13px;margin-bottom:20px}
-.card{background:#fff;border-radius:14px;padding:18px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
-.card h2{font-size:15px;margin-bottom:12px;color:#0969da}
-label{display:block;font-size:13px;color:#666;margin:10px 0 4px}
-input{width:100%;padding:9px 10px;border:1px solid #ddd;border-radius:8px;font-size:14px}
-input:read-only{background:#f4f6f8;color:#555}
-.row{display:flex;gap:8px}
-.row input{flex:1}
-button{padding:10px 14px;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-family:inherit}
-.btn-primary{background:#0969da;color:#fff}
-.btn-ghost{background:#eef2f6;color:#333}
-.btn-danger{background:#fbe9e7;color:#c0392b}
-.btn:disabled{opacity:.5;cursor:not-allowed}
-#log,#serialMon{background:#1e1e1e;color:#7ee787;font-size:12px;padding:10px;border-radius:8px;margin-top:12px;overflow-y:auto;white-space:pre-wrap;font-family:Consolas,monospace}
-#log{max-height:180px}
-#serialMon{height:420px}
-.tip{font-size:12px;color:#888;margin-top:8px;line-height:1.6;word-break:break-all}
-.steps{display:flex;flex-direction:column;gap:8px}
-.step{display:flex;align-items:center;gap:10px;background:#f8fafc;border:1px solid #ebf0f4;border-radius:10px;padding:10px 12px}
-.step .n{width:22px;height:22px;border-radius:50%;background:#0969da;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;flex:none}
-.step .info{flex:1;font-size:13px;color:#555}
-.file-btn{display:inline-block;background:#fff;border:1px dashed #b8c4d0;border-radius:8px;padding:8px 12px;font-size:13px;color:#0969da;cursor:pointer}
-.actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
-.sticky-card{position:sticky;top:16px}
-.mon-head{display:flex;justify-content:space-between;align-items:center}
-.mon-head button{padding:4px 10px;font-size:12px;background:#eef2f6;color:#555;border-radius:6px}
+body{font-family:-apple-system,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--ink);padding:20px}
+.wrap{max-width:1120px;margin:0 auto;display:grid;grid-template-columns:minmax(0,620px) minmax(0,400px);gap:20px;align-items:start}
+@media (max-width:1040px){.wrap{grid-template-columns:1fr}}
+h1{font-size:22px;font-weight:700;letter-spacing:-.02em;margin-bottom:6px}
+.sub{color:var(--sub);font-size:14px;margin-bottom:24px}
+.card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:20px}
+.card h2{font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--sub);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.step-num{width:22px;height:22px;border-radius:6px;background:var(--ink);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:999px;font-size:13px;font-weight:600}
+.badge::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--sub)}
+.badge.on{background:#dcfce7;color:var(--ok)}.badge.on::before{background:var(--ok)}
+button{padding:11px 16px;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:.15s}
+button:hover{filter:brightness(1.05)}
+button:disabled{opacity:.45;cursor:not-allowed}
+.btn-big{width:100%;background:var(--brand);color:#fff;font-size:15px;padding:13px}
+.btn-big:hover{background:var(--brand-dark)}
+.btn-ghost{background:#fff;border:1px solid var(--line);color:var(--ink)}
+.btn-danger{background:#fee2e2;color:var(--danger)}
+label{display:block;font-size:13px;font-weight:600;color:#374151;margin:14px 0 6px}
+input[type=text],input[type=password]{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:14px;font-family:inherit}
+input:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+.row{display:flex;gap:8px}.row input{flex:1;min-width:0}
+.hint{font-size:12px;color:var(--sub);margin-top:6px;line-height:1.6}
+.src{display:flex;gap:8px;margin-bottom:10px}
+.src button{flex:1;padding:9px;font-size:13px;background:#fff;border:1px solid var(--line);color:var(--sub)}
+.src button.on{border-color:var(--brand);color:var(--brand);background:#eff6ff;font-weight:700}
+.bar{height:8px;background:var(--line);border-radius:999px;overflow:hidden;margin-top:12px;display:none}
+.bar-fill{height:100%;width:0;background:var(--brand);transition:width .3s}
+#log,#serialMon{background:#0d1117;color:#8ddb8c;font-size:12px;line-height:1.6;padding:12px;border-radius:8px;margin-top:12px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;font-family:ui-monospace,Consolas,monospace}
+#log{max-height:150px}
+#serialMon{height:480px}
+.sticky-card{position:sticky;top:20px}
+.mon-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:0}
+.mon-head h2{margin:0}
+.mon-head button{padding:5px 12px;font-size:12px}
+.actions{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="col">
-    <h1>🖥 Bambu Monitor 刷写 & 配网</h1>
-    <div class="sub">先刷固件，后配网络。全程走浏览器 Web Serial，数据只到你的设备，不上传任何服务器。</div>
+    <h1>🖥️ Bambu Monitor 刷写 & 配网</h1>
+    <div class="sub">浏览器 Web Serial 直连设备——数据只在本机与设备之间，不上传任何服务器。</div>
 
     <div class="card">
-      <h2>① 刷写固件</h2>
-      <div class="steps">
-        <div class="step">
-          <div class="n">1</div>
-          <div class="info">连接设备的 USB 串口</div>
-          <button class="btn-ghost" onclick="connectSerial()">🔌 串口连接</button>
-        </div>
-        <div class="step">
-          <div class="n">2</div>
-          <div class="info">选择固件文件（merged.bin 或 .bin）</div>
-          <label class="file-btn">📁 选择文件
-            <input type="file" id="fwFile" accept=".bin" style="display:none">
-          </label>
-          <span id="fwName" style="font-size:12px;color:#888"></span>
-        </div>
-        <div class="step">
-          <div class="n">3</div>
-          <div class="info">写入设备（请勿中途拔线）</div>
-          <button class="btn-primary" onclick="doFlash()" id="flashBtn" disabled>⚡ 开始刷写</button>
-        </div>
+      <h2><span class="step-num">1</span> 连接设备
+        <span class="badge" id="connBadge" style="margin-left:auto">未连接</span>
+      </h2>
+      <button class="btn-big" id="connBtn" onclick="connectSerial()">🔌 连接串口</button>
+      <div class="hint">Chrome / Edge 打开；连接后刷写与配网共用此串口，无需重复选择。</div>
+    </div>
+
+    <div class="card">
+      <h2><span class="step-num">2</span> 固件</h2>
+      <div class="src">
+        <button id="srcOnline" class="on" onclick="setSrc('online')">在线最新版</button>
+        <button id="srcLocal" onclick="setSrc('local')">本地文件</button>
       </div>
-      <div class="tip">请用 Chrome / Edge 打开。刷写完成后建议刷新本页再进行 ② 配网。</div>
+      <div id="srcOnlineBox">
+        <div class="hint">固件随本页同源托管（每次网页部署自动拉取 Release 最新 merged.bin），点下方按钮即可获取，无跨域问题。</div>
+      </div>
+      <div id="srcLocalBox" style="display:none">
+        <label class="btn-ghost" style="display:block;text-align:center;padding:12px;cursor:pointer">📁 选择本地固件文件（merged.bin / .bin）
+          <input type="file" id="fwFile" accept=".bin" style="display:none">
+        </label>
+        <div class="hint" id="fwName">未选择文件</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="step-num">3</span> 刷写</h2>
+      <button class="btn-big" id="flashBtn" onclick="doFlash()" disabled>⚡ 开始刷写</button>
+      <div class="bar" id="bar"><div class="bar-fill" id="barFill"></div></div>
+      <div class="hint" id="flashHint">连接设备并选择固件后开始。4MB 全量约 6-8 分钟，全程勿拔线。</div>
       <div id="log"></div>
     </div>
 
     <div class="card">
-      <h2>② 配网 & 令牌</h2>
+      <h2><span class="step-num">4</span> 配网 & 令牌</h2>
       <label>WiFi 名称</label>
-      <input id="ssid" placeholder="你的 WiFi SSID">
+      <input type="text" id="ssid" placeholder="WiFi SSID">
       <label>WiFi 密码</label>
-      <input id="pass" placeholder="WiFi 密码">
-      <label>Home Assistant 长期令牌（HA 设置 → 长期访问令牌）</label>
-      <input id="token" placeholder="eyJhbGciOiJ...">
-      <label>城市 / 经纬度（城市名可自动查）</label>
+      <input type="password" id="pass" placeholder="WiFi 密码">
+      <label>Home Assistant 长期令牌</label>
+      <input type="text" id="token" placeholder="HA → 用户资料 → 安全 → 长期访问令牌">
+      <label>城市 / 经纬度</label>
       <div class="row">
-        <input id="city" placeholder="城市名">
-        <button class="btn-ghost" onclick="geocode()">查</button>
+        <input type="text" id="city" placeholder="城市名">
+        <button class="btn-ghost" onclick="geocode()">查坐标</button>
       </div>
-      <div class="row">
-        <input id="lat" placeholder="纬度">
-        <input id="lon" placeholder="经度">
+      <div class="row" style="margin-top:8px">
+        <input type="text" id="lat" placeholder="纬度">
+        <input type="text" id="lon" placeholder="经度">
       </div>
       <div class="actions">
-        <button class="btn-ghost" onclick="connectSerial()">🔌 串口连接</button>
         <button class="btn-ghost" onclick="readCfg()">📖 读取配置</button>
-        <button class="btn-primary" onclick="sendCfg()" id="sendBtn" disabled>💾 保存配置</button>
+        <button class="btn-ghost" onclick="sendCfg()">💾 保存配置</button>
         <button class="btn-danger" onclick="wipeCfg()">🗑 清空配置</button>
-        <button class="btn-ghost" onclick="reboot()">重启</button>
+        <button class="btn-ghost" onclick="reboot()">🔄 重启</button>
       </div>
-      <div id="cfgStatus" class="tip">连接串口后：读取配置自动填表 → 修改 → 保存 → 重启生效。清空配置会恢复出厂默认并需重新配网。</div>
+      <div class="hint">读取配置会自动填充表单；保存后点重启生效；清空配置恢复出厂（需重新配网）。</div>
     </div>
   </div>
 
   <div class="col">
     <div class="card sticky-card">
       <div class="mon-head">
-        <h2>📟 串口监视</h2>
-        <button onclick="document.getElementById('serialMon').textContent=''">清空</button>
+        <h2>📟 串口监视器</h2>
+        <button class="btn-ghost" onclick="document.getElementById('serialMon').textContent=''">清空</button>
       </div>
-      <div class="tip" style="margin-top:0">设备串口原始输出实时显示（配网回显 / 刷写日志）。115200。</div>
-      <pre id="serialMon"></pre>
+      <div id="serialMon"></div>
+      <div class="hint">设备串口原始输出（刷写日志 / 配网回显）实时显示。</div>
     </div>
   </div>
 </div>
 
 <script>
-const logEl = document.getElementById('log');
-const monEl = document.getElementById('serialMon');
+const $ = id => document.getElementById(id);
+const logEl = $('log'), monEl = $('serialMon');
 function log(msg){ logEl.style.display='block'; logEl.textContent += msg + '\n'; logEl.scrollTop = logEl.scrollHeight; }
-function monLog(msg){ monEl.textContent += msg; if (monEl.textContent.length > 20000) monEl.textContent = monEl.textContent.slice(-15000); monEl.scrollTop = monEl.scrollHeight; }
+function monLog(msg){ monEl.textContent += msg; if (monEl.textContent.length > 30000) monEl.textContent = monEl.textContent.slice(-20000); monEl.scrollTop = monEl.scrollHeight; }
+function setBadge(on, name){
+  const b = $('connBadge');
+  b.className = 'badge' + (on ? ' on' : '');
+  b.textContent = on ? ('已连接' + (name ? ' · ' + name : '')) : '未连接';
+}
 
-/* ---------- ① 刷写固件（esptool-js 本地库 + 手动选文件） ---------- */
-let loader = null;
-let fwData = null;
+/* ---------- 串口连接（统一：刷写/配网复用） ---------- */
+let port = null, writer = null, loader = null, stub = null;
+let cfgReader = null, cfgRun = false, lineBuf = '';
 
 async function connectSerial(){
-  if (port) { log('串口已连接 ✓（无需重复连接）'); return; }
-  if (!('serial' in navigator)) { alert('此浏览器不支持 Web Serial，请用 Chrome/Edge'); return; }
+  if (port){ log('串口已连接'); return; }
+  if (!('serial' in navigator)){ alert('此浏览器不支持 Web Serial，请用 Chrome / Edge'); return; }
   try {
     log('请求串口（请在弹出的列表选设备）...');
     port = await navigator.serial.requestPort();
     await port.open({ baudRate: 115200 });
     writer = port.writable.getWriter();
-    document.getElementById('sendBtn').disabled = false;
-    log('串口已连接 ✓（设备回显见右侧监视器；刷写会自动独占端口）');
+    setBadge(true);
+    $('sendBtn').disabled = false;
     lineBuf = '';
+    log('串口已连接 ✓');
     readCfgLoop();
   } catch(e){ log('连接失败: ' + (e.message||e)); }
 }
 
-document.getElementById('fwFile').addEventListener('change', async (e)=>{
-  const f = e.target.files[0];
-  if (!f) return;
-  try {
-    const b = await f.arrayBuffer();
-    fwData = new Uint8Array(b);
-    document.getElementById('fwName').textContent = f.name + ' (' + (b.byteLength/1024).toFixed(0) + 'KB)';
-    log('已选择固件: ' + f.name);
-  } catch(err){ log('读取文件失败: ' + err); }
-  maybeEnableFlash();
-});
-
-function maybeEnableFlash(){
-  document.getElementById('flashBtn').disabled = !(loader && fwData);
+async function closePortForFlash(){
+  cfgRun = false;
+  try { await cfgReader?.cancel(); } catch(e){}
+  try { writer?.releaseLock(); } catch(e){}
+  writer = null;
 }
 
-async function doFlash(){
-  if (!loader || !fwData){ alert('请先连接设备并选择固件'); return; }
-  const btn = document.getElementById('flashBtn');
-  btn.disabled = true;
+async function restorePort(){
+  try { await port.close(); } catch(e){}
   try {
-    // 统一连接：停配网监视并让 esptool 独占同一端口（无需重新选串口）
+    await port.open({ baudRate: 115200 });
+    writer = port.writable.getWriter();
+    lineBuf = '';
+    readCfgLoop();
+    log('串口已恢复配网监视 ✓');
+  } catch(e){ log('串口恢复失败，请刷新页面重连'); }
+}
+
+/* ---------- 固件来源 ---------- */
+let fwSource = 'online';   // 'online' | 'local'
+let fwData = null, fwLabel = '';
+
+function setSrc(s){
+  fwSource = s;
+  $('srcOnline').className = s === 'online' ? 'on' : '';
+  $('srcLocal').className = s === 'local' ? 'on' : '';
+  $('srcOnlineBox').style.display = s === 'online' ? '' : 'none';
+  $('srcLocalBox').style.display = s === 'local' ? '' : 'none';
+  updateFlashBtn();
+}
+
+$('fwFile').addEventListener('change', async (e)=>{
+  const f = e.target.files[0];
+  if (!f) return;
+  fwData = new Uint8Array(await f.arrayBuffer());
+  fwLabel = f.name + ' (' + (fwData.length/1024).toFixed(0) + 'KB)';
+  $('fwName').textContent = '已选择: ' + fwLabel;
+  log('本地固件: ' + fwLabel);
+  updateFlashBtn();
+});
+
+const ONLINE_FW = 'firmware/bambu-monitor.ino.merged.bin';   // 同源固件（Pages 部署时自动从 Release 拉取）
+
+async function getFwData(){
+  if (fwSource === 'local'){
+    if (!fwData) throw new Error('未选择本地固件文件');
+    return { data: fwData, label: fwLabel };
+  }
+  log('下载在线固件（同源 firmware/merged.bin）...');
+  const resp = await fetch(ONLINE_FW);
+  if (!resp.ok) throw new Error('在线固件获取失败 HTTP ' + resp.status + '（页面部署时若 Release 为空则无固件）');
+  const data = new Uint8Array(await resp.arrayBuffer());
+  return { data, label: '在线最新 (' + (data.length/1024).toFixed(0) + 'KB)' };
+}
+
+function updateFlashBtn(){
+  $('flashBtn').disabled = !port || (fwSource === 'local' ? !fwData : false);
+}
+
+/* ---------- 刷写 ---------- */
+async function doFlash(){
+  if (!port){ alert('请先连接串口'); return; }
+  const btn = $('flashBtn');
+  btn.disabled = true;
+  $('bar').style.display = 'block';
+  try {
+    let fw;
+    try { fw = await getFwData(); }
+    catch(e){ log('❌ ' + e.message); return; }
+    log('固件: ' + fw.label);
+
+    // 配网监视让位，esptool 接管同一端口
     cfgRun = false;
     try { await cfgReader?.cancel(); } catch(e){}
     try { writer?.releaseLock(); } catch(e){}
     writer = null;
+
     const { ESPLoader } = await import('./vendor2/dist/index.js');
     loader = new ESPLoader(port, {
       log:   (m)=>monLog(m + '\n'),
@@ -168,46 +241,50 @@ async function doFlash(){
       error: (m)=>{ monLog(m + '\n'); log('⚠ ' + m); },
       info:  (m)=>monLog(m + '\n'),
     });
-    log('初始化设备...');
+
+    log('初始化（设备将自动复位进入下载模式）...');
     await loader.initialize();
     log('上传加速桩...');
-    const stub = await loader.runStub();   // 必须用返回的 stub 实例烧写
-    log('写入固件（请勿拔线），4MB 约 6-8 分钟…');
-    await stub.flashData(fwData, 0, (n)=>log('  已写 ' + (n/1024).toFixed(0) + ' KB'));
+    stub = await loader.runStub();
+
+    log('写入固件，4MB 约 6-8 分钟，勿拔线...');
+    const total = fw.data.length;
+    await stub.flashData(fw.data, 0, (n)=>{
+      const pct = Math.floor(n / total * 100);
+      $('barFill').style.width = pct + '%';
+      log('  ' + pct + '%  (' + (n/1024).toFixed(0) + ' / ' + (total/1024).toFixed(0) + ' KB)');
+    });
     await stub.flashFinish();
-    log('✅ 刷写完成！设备将重启，可到 ② 配网。');
-  } catch(e){ log('❌ 刷写失败: ' + (e.message||e)); }
-  finally {
+    $('barFill').style.width = '100%';
+    log('✅ 刷写完成！设备将自动重启。');
+    setBadge(false);
+  } catch(e){
+    log('❌ 刷写失败: ' + (e.message||e));
+  } finally {
+    stub = null; loader = null;
     btn.disabled = false;
-    // 烧写完恢复同一端口的配网监视
-    try { await port.close(); } catch(e){}
-    try { await port.open({ baudRate: 115200 }); writer = port.writable.getWriter(); lineBuf=''; readCfgLoop(); log('串口已恢复配网监视'); }
-    catch(e){ log('烧写后串口恢复失败，请刷新页面重连'); }
+    restorePort();
   }
 }
 
-/* ---------- ② 配网 ---------- */
-let port = null, writer = null, cfgReader = null, cfgRun = false;
-let lineBuf = '';
-
-// 配网模式读循环：设备输出实时进监视器；[CFGD] 行解析回填表单
+/* ---------- 配网（读循环 + 配置读写） ---------- */
 async function readCfgLoop(){
   if (cfgRun) return;
   cfgRun = true;
   const dec = new TextDecoder();
   try {
     cfgReader = port.readable.getReader();
-    while (cfgRun) {
+    while (cfgRun){
       const { value, done } = await cfgReader.read();
       if (done) break;
-      if (value && value.length) {
+      if (value && value.length){
         const text = dec.decode(value);
         monLog(text);
         lineBuf += text;
-        let idx;
-        while ((idx = lineBuf.indexOf('\n')) >= 0) {
-          const line = lineBuf.slice(0, idx).trim();
-          lineBuf = lineBuf.slice(idx + 1);
+        let i;
+        while ((i = lineBuf.indexOf('\n')) >= 0){
+          const line = lineBuf.slice(0, i).trim();
+          lineBuf = lineBuf.slice(i + 1);
           handleDeviceLine(line);
         }
       }
@@ -220,79 +297,68 @@ function handleDeviceLine(line){
   if (!line.startsWith('[CFGD] ')) return;
   try {
     const map = {};
-    for (const kv of line.slice(7).split(' ')) {
+    for (const kv of line.slice(7).split(' ')){
       const i = kv.indexOf('=');
       if (i > 0) map[kv.slice(0, i)] = kv.slice(i + 1);
     }
-    if (map.ssid)  document.getElementById('ssid').value  = map.ssid;
-    if (map.pass)  document.getElementById('pass').value  = map.pass;
-    if (map.token) document.getElementById('token').value = map.token;
-    if (map.city)  document.getElementById('city').value  = map.city;
-    if (map.lat)   document.getElementById('lat').value   = map.lat;
-    if (map.lon)   document.getElementById('lon').value   = map.lon;
+    if (map.ssid)  $('ssid').value  = map.ssid;
+    if (map.pass)  $('pass').value  = map.pass;
+    if (map.token) $('token').value = map.token;
+    if (map.city)  $('city').value  = map.city;
+    if (map.lat)   $('lat').value   = map.lat;
+    if (map.lon)   $('lon').value   = map.lon;
     log('📖 已读取设备配置并填充表单 ✓');
   } catch(e){}
 }
 
+async function sendLine(text){
+  if (!port || !writer) { alert('请先连接串口'); return false; }
+  await writer.write(new TextEncoder().encode(text + '\n'));
+  return true;
+}
+
 async function readCfg(){
-  if (!port || !writer) { alert('请先连接串口'); return; }
-  try {
-    await writer.write(new TextEncoder().encode('cfgget\n'));
-    log('已发送 cfgget，等待设备回填表单…');
-  } catch(e){ log('发送失败: ' + e); }
+  if (await sendLine('cfgget')) log('已发送 cfgget，等待回填表单…');
 }
-
-async function wipeCfg(){
-  if (!port || !writer) { alert('请先连接串口'); return; }
-  if (!confirm('确定清空设备上的全部配置？\n（WiFi / 城市 / HA 令牌都会恢复出厂默认，需要重新配网）')) return;
-  try {
-    await writer.write(new TextEncoder().encode('cfgwipe\n'));
-    log('已发送 cfgwipe → 设备恢复默认。点“重启”生效，之后需重新配网。');
-  } catch(e){ log('发送失败: ' + e); }
-}
-
-async function geocode(){
-  const city = document.getElementById('city').value.trim();
-  if (!city) return;
-  try {
-    const r = await fetch('https://geocoding-api.open-meteo.com/v1/search?name=' + encodeURIComponent(city) + '&count=1&countryCode=CN&language=zh');
-    const d = await r.json();
-    if (d && d.results && d.results[0]) {
-      document.getElementById('lat').value = d.results[0].latitude.toFixed(5);
-      document.getElementById('lon').value = d.results[0].longitude.toFixed(5);
-      document.getElementById('city').value = d.results[0].name;
-      log('城市 → ' + d.results[0].name + ' ' + d.results[0].latitude.toFixed(5) + ',' + d.results[0].longitude.toFixed(5));
-    } else log('未找到城市');
-  } catch(e){ log('查城市失败: ' + e); }
-}
-
 async function sendCfg(){
-  if (!port || !writer) { alert('请先连接串口'); return; }
   const parts = [];
-  const ssid = document.getElementById('ssid').value.trim();
-  const pass = document.getElementById('pass').value.trim();
-  const token = document.getElementById('token').value.trim();
-  const city = document.getElementById('city').value.trim();
-  const lat = document.getElementById('lat').value.trim();
-  const lon = document.getElementById('lon').value.trim();
+  const ssid = $('ssid').value.trim(), pass = $('pass').value.trim();
+  const token = $('token').value.trim(), city = $('city').value.trim();
+  const lat = $('lat').value.trim(), lon = $('lon').value.trim();
   if (ssid)  parts.push('ssid=' + ssid);
   if (pass)  parts.push('pass=' + pass);
   if (token) parts.push('token=' + token);
   if (city)  parts.push('city=' + city);
   if (lat)   parts.push('lat=' + lat);
   if (lon)   parts.push('lon=' + lon);
-  if (!parts.length) { alert('请至少填一项'); return; }
-  try {
-    await writer.write(new TextEncoder().encode('cfg ' + parts.join(' ') + '\n'));
-    log('已发送 cfg（' + parts.map(p=>p.split('=')[0]).join(', ') + '）→ 设备回显见监视器');
-  } catch(e){ log('发送失败: ' + e); }
+  if (!parts.length){ alert('请至少填一项'); return; }
+  if (await sendLine('cfg ' + parts.join(' ')))
+    log('已发送 cfg（' + parts.map(p=>p.split('=')[0]).join(', ') + '）→ 回显见监视器');
+}
+async function wipeCfg(){
+  if (!confirm('确定清空设备上的全部配置？\n（WiFi / 城市 / HA 令牌恢复出厂，需要重新配网）')) return;
+  if (await sendLine('cfgwipe')) log('已发送 cfgwipe → 点"重启"生效，之后需重新配网。');
+}
+async function reboot(){
+  if (await sendLine('r')) log('已发送重启，设备将按新配置启动。');
 }
 
-async function reboot(){
-  if (!port || !writer) { alert('请先连接串口'); return; }
-  try { await writer.write(new TextEncoder().encode('r\n')); log('已发送重启，设备将按新配置启动。'); }
-  catch(e){ log('发送失败: ' + e); }
+async function geocode(){
+  const city = $('city').value.trim();
+  if (!city) return;
+  try {
+    const r = await fetch('https://geocoding-api.open-meteo.com/v1/search?name=' + encodeURIComponent(city) + '&count=1&countryCode=CN&language=zh');
+    const d = await r.json();
+    if (d && d.results && d.results[0]){
+      $('lat').value = d.results[0].latitude.toFixed(5);
+      $('lon').value = d.results[0].longitude.toFixed(5);
+      $('city').value = d.results[0].name;
+      log('城市 → ' + d.results[0].name + ' (' + $('lat').value + ', ' + $('lon').value + ')');
+    } else log('未找到城市');
+  } catch(e){ log('查坐标失败: ' + e); }
 }
+
+updateFlashBtn();
 </script>
 </body>
 </html>
