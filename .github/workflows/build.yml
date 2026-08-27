@@ -1,6 +1,7 @@
 # 自动编译固件：push 到 main（或手动触发）后用 arduino-cli 编译 ESP32 固件，
 # 产物上传为 Actions artifact（Actions 页可下载 .bin/.elf）。
 name: build
+run-name: build ${{ github.ref_name }}
 
 on:
   push:
