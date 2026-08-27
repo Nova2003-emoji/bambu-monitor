@@ -36,6 +36,15 @@ jobs:
           arduino-cli lib install ArduinoJson
           arduino-cli lib install NTPClient
 
+      - name: Apply GxEPD2 Z96 patch (HINK-E042A13-A0 driver from ref firmware)
+        run: |
+          GX="$HOME/Arduino/libraries/GxEPD2"
+          cp patches/GxEPD2_420_Z96.h   "$GX/src/gdeh/"
+          cp patches/GxEPD2_420_Z96.cpp "$GX/src/gdeh/"
+          sed -i 's/      GDEY042Z98,/      GDEY042Z98,
+      GDEH042Z96,/' "$GX/src/GxEPD2.h"
+          grep -q GDEH042Z96 "$GX/src/GxEPD2.h"
+
       - name: Prepare local config.h (example 为无凭据占位)
         run: cp config.example.h config.h
 
