@@ -67,10 +67,17 @@ input:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(37,
       <h2><span class="step-num">2</span> 固件</h2>
       <div class="src">
         <button id="srcOnline" class="on" onclick="setSrc('online')">在线最新版</button>
+        <button id="srcHist" onclick="setSrc('hist')">历史版本</button>
         <button id="srcLocal" onclick="setSrc('local')">本地文件</button>
       </div>
       <div id="srcOnlineBox">
         <div class="hint">使用最新正式版固件，点下方「开始刷写」会自动获取。</div>
+      </div>
+      <div id="srcHistBox" style="display:none">
+        <select id="histSel" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:14px">
+          <option value="">（加载中…）</option>
+        </select>
+        <div class="hint">选择要烧写的历史版本（随本页同源托管）。</div>
       </div>
       <div id="srcLocalBox" style="display:none">
         <label class="btn-ghost" style="display:block;text-align:center;padding:12px;cursor:pointer">📁 选择本地固件文件（merged.bin / .bin）
@@ -184,8 +191,10 @@ let fwData = null, fwLabel = '';
 function setSrc(s){
   fwSource = s;
   $('srcOnline').className = s === 'online' ? 'on' : '';
+  $('srcHist').className = s === 'hist' ? 'on' : '';
   $('srcLocal').className = s === 'local' ? 'on' : '';
   $('srcOnlineBox').style.display = s === 'online' ? '' : 'none';
+  $('srcHistBox').style.display = s === 'hist' ? '' : 'none';
   $('srcLocalBox').style.display = s === 'local' ? '' : 'none';
   updateFlashBtn();
 }
@@ -207,6 +216,15 @@ async function getFwData(){
     if (!fwData) throw new Error('未选择本地固件文件');
     return { data: fwData, label: fwLabel };
   }
+  if (fwSource === 'hist'){
+    const tag = $('histSel').value;
+    if (!tag) throw new Error('未选择历史版本');
+    log('下载历史固件 ' + tag + ' ...');
+    const resp = await fetch('firmware/' + tag + '.bin');
+    if (!resp.ok) throw new Error('获取失败 HTTP ' + resp.status);
+    const data = new Uint8Array(await resp.arrayBuffer());
+    return { data, label: tag + ' (' + (data.length/1024).toFixed(0) + 'KB)' };
+  }
   log('下载在线固件（同源 firmware/merged.bin）...');
   const resp = await fetch(ONLINE_FW);
   if (!resp.ok) throw new Error('在线固件获取失败 HTTP ' + resp.status + '（页面部署时若 Release 为空则无固件）');
@@ -215,8 +233,26 @@ async function getFwData(){
 }
 
 function updateFlashBtn(){
-  $('flashBtn').disabled = !port || (fwSource === 'local' ? !fwData : false);
+  const ready = fwSource === 'local' ? !!fwData : fwSource === 'hist' ? !!$('histSel').value : true;
+  $('flashBtn').disabled = !port || !ready;
 }
+$('histSel').addEventListener('change', updateFlashBtn);
+
+// 历史版本列表（Pages 部署时生成）
+fetch('firmware/index.json')
+  .then(r => r.ok ? r.json() : Promise.reject())
+  .then(list => {
+    const sel = $('histSel');
+    sel.innerHTML = '';
+    for (const v of list){
+      const o = document.createElement('option');
+      o.value = v.version;
+      o.textContent = v.version + (v.published ? '  ·  ' + v.published.slice(0, 10) : '');
+      sel.appendChild(o);
+    }
+    log('历史固件 ' + list.length + ' 个版本可用（固件来源 → 历史版本）');
+  })
+  .catch(() => { $('histSel').innerHTML = '<option value="">（暂无历史版本）</option>'; });
 
 /* ---------- 刷写 ---------- */
 async function doFlash(){

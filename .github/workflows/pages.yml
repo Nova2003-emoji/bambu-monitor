@@ -31,6 +31,31 @@ jobs:
           mkdir -p web/firmware
           curl -sL -o web/firmware/bambu-monitor.ino.merged.bin             https://github.com/Nova2003-emoji/bambu-monitor/releases/latest/download/bambu-monitor.ino.merged.bin || true
           curl -sL -o web/firmware/version.json             https://github.com/Nova2003-emoji/bambu-monitor/releases/latest/download/version.json || true
+          python3 - <<'PY'
+          import json, urllib.request
+          try:
+              req = urllib.request.Request(
+                  "https://api.github.com/repos/Nova2003-emoji/bambu-monitor/releases?per_page=6",
+                  headers={"User-Agent": "pages-deploy"})
+              rels = json.load(urllib.request.urlopen(req))
+          except Exception as e:
+              print("releases api failed:", e); rels = []
+          index = []
+          for r in rels:
+              tag = r.get("tag_name", "")
+              for a in r.get("assets", []):
+                  if a.get("name") == "bambu-monitor.ino.merged.bin":
+                      dst = "web/firmware/" + tag + ".bin"
+                      try:
+                          urllib.request.urlretrieve(a["browser_download_url"], dst)
+                          index.append({"version": tag, "file": tag + ".bin",
+                                        "published": r.get("published_at", "")})
+                          print("fetched", dst)
+                      except Exception as e:
+                          print("skip", tag, ":", e)
+          json.dump(index, open("web/firmware/index.json", "w"))
+          print("history index:", len(index), "versions")
+          PY
           ls -la web/firmware
 
       - uses: actions/upload-pages-artifact@v5
