@@ -23,6 +23,9 @@ const char* cfgLat();
 const char* cfgLon();
 const char* cfgSsid();
 const char* cfgPass();
+const char* cfgToken();      // HA 令牌：NVS 优先，config.h 宏兜底
+void cfgSaveToken(const char* tk);
+void cfgWipe();              // 清空 NVS 全部配置并恢复默认值（网页“清空配置”用）
 
 // AP 网关 IP（配网界面 IPAddress 与网页 captive portal 跳转 URL 共用，保持一致）
 #define AP_GATEWAY_IP  "192.168.3.3"

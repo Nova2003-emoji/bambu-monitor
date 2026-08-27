@@ -22,6 +22,7 @@
 
 // ---- 默认值（config.h 宏；NVS 有值优先）----
 #include "config.h"
+#include "fw_version.h"      // FW_VERSION/FW_BUILT（CI 编译时生成）
 #ifndef WEATHER_LAT
 #define WEATHER_LAT  "22.54"
 #define WEATHER_LON  "114.05"
@@ -40,6 +41,7 @@ static char cfg_lat[16]  = WEATHER_LAT;
 static char cfg_lon[16]  = WEATHER_LON;
 static char cfg_ssid[32] = STA_SSID;
 static char cfg_pass[64] = STA_PASSWORD;
+static char cfg_token[192] = HA_TOKEN;
 
 void cfgLoad() {
   prefs.begin("cfg", true);   // 只读打开
@@ -48,6 +50,7 @@ void cfgLoad() {
   prefs.getString("lon",  cfg_lon,  sizeof(cfg_lon));
   prefs.getString("wifi_ssid", cfg_ssid, sizeof(cfg_ssid));
   prefs.getString("wifi_pass", cfg_pass, sizeof(cfg_pass));
+  prefs.getString("token", cfg_token, sizeof(cfg_token));
   prefs.end();
   Serial.printf("[CFG] city=%s lat=%s lon=%s ssid=%s" NL_BSN,
     cfg_city, cfg_lat, cfg_lon, cfg_ssid[0] ? cfg_ssid : "(nvs-default)");
@@ -71,6 +74,28 @@ void cfgSaveWifi(const char* ssid, const char* pass) {
   prefs.putString("wifi_ssid", cfg_ssid);
   prefs.putString("wifi_pass", cfg_pass);
   prefs.end();
+}
+
+void cfgSaveToken(const char* tk) {
+  snprintf(cfg_token, sizeof(cfg_token), "%s", tk);
+  prefs.begin("cfg", false);
+  prefs.putString("token", cfg_token);
+  prefs.end();
+}
+
+const char* cfgToken() { return cfg_token; }
+
+void cfgWipe() {
+  prefs.begin("cfg", false);
+  prefs.clear();                     // 清 NVS 全部配置
+  prefs.end();
+  // 内存恢复为 config.h 默认值
+  snprintf(cfg_city,  sizeof(cfg_city),  "%s", WEATHER_CITY);
+  snprintf(cfg_lat,   sizeof(cfg_lat),   "%s", WEATHER_LAT);
+  snprintf(cfg_lon,   sizeof(cfg_lon),   "%s", WEATHER_LON);
+  snprintf(cfg_ssid,  sizeof(cfg_ssid),  "%s", STA_SSID);
+  snprintf(cfg_pass,  sizeof(cfg_pass),  "%s", STA_PASSWORD);
+  snprintf(cfg_token, sizeof(cfg_token), "%s", HA_TOKEN);
 }
 
 const char* cfgCity() { return cfg_city; }

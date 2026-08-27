@@ -31,7 +31,8 @@
 #include "common.h"             // espWdtFeed/baise/heise/NL_BSN
 #include "clock.h"             // clockNowSec/clockSync（共享时钟）
 #include "footer.h"            // drawFooter（底部统一样式）
-#include "config.h"            // HA_TOKEN（本地默认值，NVS 可有优先；不入库）
+#include "config.h"            // HA_TOKEN 默认值
+#include "config_module.h"       // cfgToken（NVS 优先）
 
 // ---- 主文件全局（sta_ssid/sta_password/connectToWifi 的 extern 见 common.h）----
 extern NTPClient timeClient;            // bambu-monitor.ino 定义
@@ -64,7 +65,7 @@ static void fetchAmsModel() {
   HTTPClient http;
   http.setTimeout(8000);
   http.begin(String(HA_HOST) + "/api/template");
-  http.addHeader("Authorization", String("Bearer ") + HA_TOKEN);
+  http.addHeader("Authorization", String("Bearer ") + cfgToken());
   http.addHeader("Content-Type", "application/json");
   String body = String("{\"template\":\"{{ device_attr(device_id('")
       + HA_ENT + "ams_1_temperature'), 'model') }}\"}";
@@ -133,7 +134,7 @@ static bool fetchPrinter() {
   HTTPClient http;
   http.setTimeout(8000);
   http.begin(String(HA_HOST) + "/api/template");
-  http.addHeader("Authorization", String("Bearer ") + HA_TOKEN);
+  http.addHeader("Authorization", String("Bearer ") + cfgToken());
   http.addHeader("Content-Type", "application/json");
   int code = http.POST("{\"template\":\"" + jsonEscape(tmpl) + "\"}");
   if (code != 200) {
