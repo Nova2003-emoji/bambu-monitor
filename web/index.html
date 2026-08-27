@@ -124,18 +124,19 @@ function maybeEnableFlash(){
 
 async function doFlash(){
   if (!loader || !fwData){ alert('请先连接设备并选择固件'); return; }
+  const btn = document.getElementById('flashBtn');
+  btn.disabled = true;                     // 防重入（重复初始化会 getReader locked）
   try {
     log('初始化设备...');
     await loader.initialize();
-    // 默认 115200 最稳（921600 在 CH340 上易丢包导致状态字节错乱）
-    log('以 115200 波特率写入，4MB 约 6-8 分钟，请耐心等待…');
     log('上传加速桩...');
-    await loader.runStub();
-    log('写入固件（请勿拔线）...');
-    await loader.flashData(fwData, 0, (n)=>log('  已写 ' + (n/1024).toFixed(0) + ' KB'));
-    await loader.flashFinish();
+    const stub = await loader.runStub();   // 必须用返回的 stub 实例烧写（状态字节 2B，ROM 实例期望 4B）
+    log('写入固件（请勿拔线），4MB 约 6-8 分钟…');
+    await stub.flashData(fwData, 0, (n)=>log('  已写 ' + (n/1024).toFixed(0) + ' KB'));
+    await stub.flashFinish();
     log('✅ 刷写完成！设备将重启，可到 ② 配网。');
   } catch(e){ log('❌ 刷写失败: ' + (e.message||e)); }
+  finally { btn.disabled = false; }
 }
 
 /* ---------- ② 配网 ---------- */
