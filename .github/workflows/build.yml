@@ -1,6 +1,6 @@
 # 自动编译固件：push 到 main（或手动触发）后用 arduino-cli 编译 ESP32 固件，
 # 产物上传为 Actions artifact（Actions 页可下载 .bin/.elf）。
-name: build-firmware
+name: build
 
 on:
   push:
@@ -8,18 +8,18 @@ on:
   workflow_dispatch:
 
 jobs:
-  compile:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
 
-      - name: Install Arduino CLI
+      - name: Install CLI
         run: |
           mkdir -p "$HOME/bin"
           curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | BINDIR="$HOME/bin" sh
           echo "$HOME/bin" >> "$GITHUB_PATH"
 
-      - name: Install ESP32 core
+      - name: Install core
         run: |
           arduino-cli config init --overwrite
           arduino-cli config add board_manager.additional_urls \
@@ -27,7 +27,7 @@ jobs:
           arduino-cli core update-index
           arduino-cli core install esp32:esp32
 
-      - name: Install libraries
+      - name: Install libs
         run: |
           arduino-cli lib install "Adafruit GFX Library"
           arduino-cli lib install "Adafruit BusIO"
@@ -36,7 +36,7 @@ jobs:
           arduino-cli lib install ArduinoJson
           arduino-cli lib install NTPClient
 
-      - name: Apply GxEPD2 Z96 patch (HINK-E042A13-A0 driver from ref firmware)
+      - name: Patch GxEPD2
         run: |
           GX="$HOME/Arduino/libraries/GxEPD2"
           cp patches/GxEPD2_420_Z96.h   "$GX/src/gdeh/"
@@ -63,15 +63,15 @@ jobs:
           EOF
           grep -q GDEH042Z96 "$GX/src/GxEPD2.h"
 
-      - name: Prepare local config.h (example 为无凭据占位)
+      - name: Make config.h
         run: cp config.example.h config.h
 
-      - name: Compile firmware
+      - name: Compile
         run: |
           arduino-cli compile --fqbn "esp32:esp32:esp32:PartitionScheme=huge_app" \
             --output-dir build .
 
-      - name: Upload firmware artifact
+      - name: Upload
         uses: actions/upload-artifact@v7
         with:
           name: bambu-monitor-firmware
