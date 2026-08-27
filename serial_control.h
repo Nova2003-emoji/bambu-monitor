@@ -77,7 +77,7 @@ static void serialControl() {
         Serial.printf("[SERIAL] unknown cmd: %c (h for help)\n", cmd);
       }
       line = "";
-    } else if (line.length() < 200) {   // 防串口垃圾无限累积
+    } else if (line.length() < 512) {   // 防串口垃圾无限累积
       line += c;
     }
   }

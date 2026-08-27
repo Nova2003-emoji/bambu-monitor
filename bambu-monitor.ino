@@ -82,6 +82,7 @@ void connectToWifi() {
 }
 
 void setup() {
+  Serial.setRxBufferSize(1024);   // 长配置行（网页 cfg 命令 ~200B）在 loop 阻塞期不丢字节
   Serial.begin(115200);
   delay(200);
   espWdtInit();  // 注册当前任务到 TWDT（loop 每轮喂）
