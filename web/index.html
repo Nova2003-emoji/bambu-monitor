@@ -163,14 +163,10 @@ async function doFlash(){
     writer = null;
     const { ESPLoader } = await import('./vendor2/dist/index.js');
     loader = new ESPLoader(port, {
-      log:   (m)=>monLog(m + '
-'),
-      debug: (m)=>monLog(m + '
-'),
-      error: (m)=>{ monLog(m + '
-'); log('⚠ ' + m); },
-      info:  (m)=>monLog(m + '
-'),
+      log:   (m)=>monLog(m + '\n'),
+      debug: (m)=>monLog(m + '\n'),
+      error: (m)=>{ monLog(m + '\n'); log('⚠ ' + m); },
+      info:  (m)=>monLog(m + '\n'),
     });
     log('初始化设备...');
     await loader.initialize();
