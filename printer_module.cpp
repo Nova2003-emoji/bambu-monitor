@@ -1,5 +1,5 @@
 // printer_module.cpp — 3D 打印机监控模块（runMode=1）
-// 数据源: Home Assistant REST API（实体前缀 sensor.a1_03919d552104522_*）
+// 数据源: Home Assistant REST API（实体前缀见 config.h 的 HA_ENT_PREF）
 // 字体: QFont 系列（api usage 屏同款，JetBrainsMono 1-bit）：信息行 QFont16(21px)；
 //       大 % 与状态词同为 QFont16 同行；图标 MDI_22（与文字中线对齐）
 // 排版: 左栏（x 8..192）：型号+时间 / 任务名 / 进度条（内缩做框）/%+状态词 /
