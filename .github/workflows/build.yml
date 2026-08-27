@@ -1,0 +1,48 @@
+# 自动编译固件：push 到 main（或手动触发）后用 arduino-cli 编译 ESP32 固件，
+# 产物上传为 Actions artifact（Actions 页可下载 .bin/.elf）。
+name: build-firmware
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Arduino CLI
+        uses: arduino/setup-arduino-cli@v2
+        with:
+          version: latest
+
+      - name: Install ESP32 core
+        run: |
+          arduino-cli config init --overwrite
+          arduino-cli config add board_manager.additional_urls \
+            https://espressif.github.io/arduino-esp32/package_esp32_index.json
+          arduino-cli core update-index
+          arduino-cli core install esp32:esp32
+
+      - name: Install libraries
+        run: |
+          arduino-cli lib install "Adafruit GFX Library"
+          arduino-cli lib install "Adafruit BusIO"
+          arduino-cli lib install GxEPD2
+          arduino-cli lib install U8g2_for_Adafruit_GFX
+          arduino-cli lib install ArduinoJson
+          arduino-cli lib install NTPClient
+
+      - name: Compile firmware
+        run: |
+          arduino-cli compile --fqbn "esp32:esp32:esp32:PartitionScheme=huge_app" \
+            --output-dir build .
+
+      - name: Upload firmware artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bambu-monitor-firmware
+          path: build/
+          if-no-files-found: error
