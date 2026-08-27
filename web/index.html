@@ -15,21 +15,46 @@ label{display:block;font-size:13px;color:#666;margin:10px 0 4px}
 input{width:100%;padding:9px 10px;border:1px solid #ddd;border-radius:8px;font-size:14px}
 .row{display:flex;gap:8px}
 .row input{flex:1}
-button{padding:10px 14px;border:none;border-radius:8px;font-size:14px;cursor:pointer}
-.btn-primary{background:#0969da;color:#fff;width:100%;margin-top:6px}
+button{padding:10px 14px;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-family:inherit}
+.btn-primary{background:#0969da;color:#fff}
 .btn-ghost{background:#eef2f6;color:#333}
+.btn:disabled{opacity:.5;cursor:not-allowed}
 #log{background:#1e1e1e;color:#7ee787;font-size:12px;padding:10px;border-radius:8px;margin-top:12px;max-height:180px;overflow-y:auto;white-space:pre-wrap;font-family:monospace}
-.tip{font-size:12px;color:#888;margin-top:8px;line-height:1.6}
+.tip{font-size:12px;color:#888;margin-top:8px;line-height:1.6;word-break:break-all}
+.steps{display:flex;flex-direction:column;gap:8px}
+.step{display:flex;align-items:center;gap:10px;background:#f8fafc;border:1px solid #ebf0f4;border-radius:10px;padding:10px 12px}
+.step .n{width:22px;height:22px;border-radius:50%;background:#0969da;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;flex:none}
+.step .info{flex:1;font-size:13px;color:#555}
+.file-btn{display:inline-block;background:#fff;border:1px dashed #b8c4d0;border-radius:8px;padding:8px 12px;font-size:13px;color:#0969da;cursor:pointer}
 </style>
 </head>
 <body>
 <h1>🖥 Bambu Monitor 刷写 & 配网</h1>
-<div class="sub">一步刷固件，一步配网络。全程走浏览器 Web Serial，数据只到你的设备，不上传任何服务器。</div>
+<div class="sub">先刷固件，后配网络。全程走浏览器 Web Serial，数据只到你的设备，不上传任何服务器。</div>
 
 <div class="card">
   <h2>① 刷写固件</h2>
-  <button class="btn-primary" id="flashBtn" onclick="flashFirmware()">🔌 选择串口并刷写固件</button>
-  <div class="tip">点击后浏览器弹出串口选择 → 选接入设备的 USB 串口 → 自动下载最新固件并烧录（进度见下方日志）。请用 Chrome / Edge 打开。</div>
+  <div class="steps">
+    <div class="step">
+      <div class="n">1</div>
+      <div class="info">连接设备的 USB 串口</div>
+      <button class="btn-ghost" onclick="flashConnect()">🔌 连接设备</button>
+    </div>
+    <div class="step">
+      <div class="n">2</div>
+      <div class="info">选择固件文件（merged.bin 或 .bin）</div>
+      <label class="file-btn">📁 选择文件
+        <input type="file" id="fwFile" accept=".bin" style="display:none">
+      </label>
+      <span id="fwName" style="font-size:12px;color:#888"></span>
+    </div>
+    <div class="step">
+      <div class="n">3</div>
+      <div class="info">写入设备（请勿中途拔线）</div>
+      <button class="btn-primary" onclick="doFlash()" id="flashBtn" disabled>⚡ 开始刷写</button>
+    </div>
+  </div>
+  <div class="tip">请用 Chrome / Edge 打开。刷写完成后建议刷新本页再进行 ② 配网。</div>
   <div id="log"></div>
 </div>
 
@@ -62,34 +87,43 @@ button{padding:10px 14px;border:none;border-radius:8px;font-size:14px;cursor:poi
 const logEl = document.getElementById('log');
 function log(msg){ logEl.style.display='block'; logEl.textContent += msg + '\n'; logEl.scrollTop = logEl.scrollHeight; }
 
-/* ---------- ① 刷写固件（esptool-js 本地库） ---------- */
-async function flashFirmware(){
-  const btn = document.getElementById('flashBtn');
-  btn.disabled = true;
+/* ---------- ① 刷写固件（esptool-js 本地库 + 手动选文件） ---------- */
+let loader = null;      // esptool ESPLoader 实例
+let fwData = null;      // 所选固件二进制
+
+async function flashConnect(){
   try {
-    log('--- 读取刷写清单 ---');
-    const manifest = await (await fetch('./manifest.json')).json();
-    const build = manifest.builds[0];
-    const fileArray = [];
-    for (const part of build.parts) {
-      log('下载 ' + part.path.split('/').pop() + ' ...');
-      const resp = await fetch(part.path);
-      if (!resp.ok) throw new Error('下载失败 HTTP ' + resp.status);
-      const data = new Uint8Array(await resp.arrayBuffer());
-      fileArray.push({ data, address: part.offset });
-      log('  已下载 ' + (data.length/1024).toFixed(0) + ' KB');
-    }
-    log('--- 连接串口（请在弹出的列表选设备）---');
+    log('请求串口（请在弹出的列表选设备）...');
     const { connect } = await import('./vendor/dist/index.js');
-    const loader = await connect({ log: (m)=>log('  ' + m) });
-    log('--- 写入固件（请勿断开）---');
-    await loader.write_flash({ fileArray, eraseAll: (manifest.new_install_prompt_erase === true) });
-    log('✅ 刷写完成！设备将重启，可到下方“配网”填写网络。');
-  } catch(e){
-    log('❌ 刷写失败: ' + e.message);
-  } finally {
-    btn.disabled = false;
-  }
+    loader = await connect({ log: (m)=>log('  ' + m) });
+    log('设备已连接 ✓');
+  } catch(e){ log('连接失败: ' + (e.message||e)); }
+  maybeEnableFlash();
+}
+
+document.getElementById('fwFile').addEventListener('change', async (e)=>{
+  const f = e.target.files[0];
+  if (!f) return;
+  try {
+    const b = await f.arrayBuffer();
+    fwData = new Uint8Array(b);
+    document.getElementById('fwName').textContent = f.name + ' (' + (b.byteLength/1024).toFixed(0) + 'KB)';
+    log('已选择固件: ' + f.name);
+  } catch(err){ log('读取文件失败: ' + err); }
+  maybeEnableFlash();
+});
+
+function maybeEnableFlash(){
+  document.getElementById('flashBtn').disabled = !(loader && fwData);
+}
+
+async function doFlash(){
+  if (!loader || !fwData){ alert('请先连接设备并选择固件'); return; }
+  try {
+    log('写入固件（请勿拔线）...');
+    await loader.write_flash({ fileArray: [{ data: fwData, address: 0 }], eraseAll: false });
+    log('✅ 刷写完成！设备将重启，可到 ② 配网。');
+  } catch(e){ log('❌ 刷写失败: ' + (e.message||e)); }
 }
 
 /* ---------- ② 配网 ---------- */

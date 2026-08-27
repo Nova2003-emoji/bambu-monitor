@@ -26,12 +26,6 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: actions/configure-pages@v6
-      - name: Fetch latest firmware (同源托管，避开 release CORS)
-        run: |
-          mkdir -p web/firmware
-          curl -sL -o web/firmware/bambu-monitor.ino.merged.bin             https://github.com/Nova2003-emoji/bambu-monitor/releases/latest/download/bambu-monitor.ino.merged.bin || true
-          ls -la web/firmware
-
       - uses: actions/upload-pages-artifact@v5
         with:
           path: web
