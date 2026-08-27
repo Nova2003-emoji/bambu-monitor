@@ -5,8 +5,7 @@ run-name: ${{ github.sha }}
 
 on:
   push:
-    branches: [ main ]
-    tags: [ 'v*' ]          # 打 v* tag 时额外自动发布 Release 附件
+    tags: [ 'v*' ]          # 仅打 v* tag 时编译并发布 Release；push main 不触发
   workflow_dispatch:
 
 permissions:
