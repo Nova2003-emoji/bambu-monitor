@@ -36,6 +36,9 @@ jobs:
           arduino-cli lib install ArduinoJson
           arduino-cli lib install NTPClient
 
+      - name: Prepare local config.h (example 为无凭据占位)
+        run: cp config.example.h config.h
+
       - name: Compile firmware
         run: |
           arduino-cli compile --fqbn "esp32:esp32:esp32:PartitionScheme=huge_app" \
