@@ -42,3 +42,18 @@ arduino-cli upload -p <COM> --fqbn "esp32:esp32:esp32:PartitionScheme=huge_app" 
 ```
 
 依赖库：GxEPD2、U8g2_for_Adafruit_GFX、Adafruit GFX、ArduinoJson、NTPClient。
+
+## 参考与借鉴
+
+本项目站在这些开源项目/资料上，感谢原作者：
+
+| 项目 / 资料 | 链接 | 借鉴点 |
+|---|---|---|
+| ESP32-eInk-Dashboard（原版拓竹墨水屏监控） | https://github.com/VoIPshare/ESP32-eInk-Dashboard | 稀疏字体渲染（SparseGFXfont）、MDI 图标绘制、监控界面布局 |
+| weather-ink-screen（甘草 WeatherInk 固件） | https://gitee.com/lichengjiez/weather-ink-screen | ESP8266→ESP32 移植基线、时钟/界面模块结构 |
+| Breezy Weather | https://github.com/papjul/breezy-weather | 主界面天气 UI 布局参考（7 天预报横排） |
+| Material Design Icons（MDI） | https://pictogrammers.com/library/mdi/ | 天气/温度图标（OFL 许可，自行从 TTF 提取为位图） |
+| Open-Meteo API | https://open-meteo.com | 免费免 key 的天气/地理编码数据源 |
+| GxEPD2 | https://github.com/ZinggJM/GxEPD2 | SSD1619 墨水屏驱动与全刷/局刷框架 |
+| U8g2（含 gb2312 中文字库） | https://github.com/olikraus/u8g2 | 中文/混合文字渲染（基线定位、宽度测量） |
+| Howard Hinnant date algorithms | https://howardhinnant.github.io/date_algorithms.html | civil_from_days / days_from_civil 日期换算 |
