@@ -120,8 +120,15 @@ function maybeEnableFlash(){
 async function doFlash(){
   if (!loader || !fwData){ alert('请先连接设备并选择固件'); return; }
   try {
+    log('初始化设备...');
+    await loader.initialize();
+    try { await loader.setBaudrate(921600); log('波特率 → 921600（加速）'); }
+    catch(e){ log('提速失败，保持 115200'); }
+    log('上传加速桩...');
+    await loader.runStub();
     log('写入固件（请勿拔线）...');
-    await loader.write_flash({ fileArray: [{ data: fwData, address: 0 }], eraseAll: false });
+    await loader.flashData(fwData, 0, (n)=>log('  已写 ' + (n/1024).toFixed(0) + ' KB'));
+    await loader.flashFinish();
     log('✅ 刷写完成！设备将重启，可到 ② 配网。');
   } catch(e){ log('❌ 刷写失败: ' + (e.message||e)); }
 }
