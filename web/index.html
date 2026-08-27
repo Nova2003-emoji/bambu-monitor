@@ -18,11 +18,8 @@ input{width:100%;padding:9px 10px;border:1px solid #ddd;border-radius:8px;font-s
 button{padding:10px 14px;border:none;border-radius:8px;font-size:14px;cursor:pointer}
 .btn-primary{background:#0969da;color:#fff;width:100%;margin-top:6px}
 .btn-ghost{background:#eef2f6;color:#333}
-.btn:disabled{opacity:.5;cursor:not-allowed}
-#log{background:#1e1e1e;color:#7ee787;font-size:12px;padding:10px;border-radius:8px;margin-top:12px;max-height:160px;overflow-y:auto;display:none;white-space:pre-wrap;font-family:monospace}
+#log{background:#1e1e1e;color:#7ee787;font-size:12px;padding:10px;border-radius:8px;margin-top:12px;max-height:180px;overflow-y:auto;white-space:pre-wrap;font-family:monospace}
 .tip{font-size:12px;color:#888;margin-top:8px;line-height:1.6}
-esp-web-install-button{display:block}
-esp-web-install-button::part(button){background:#0969da;color:#fff;border:none;border-radius:10px;padding:14px 20px;font-size:16px;cursor:pointer;width:100%}
 </style>
 </head>
 <body>
@@ -31,12 +28,9 @@ esp-web-install-button::part(button){background:#0969da;color:#fff;border:none;b
 
 <div class="card">
   <h2>① 刷写固件</h2>
-  <esp-web-install-button manifest="./manifest.json">
-    <button slot="activate" class="btn-primary">🔌 选择串口并刷写固件</button>
-    <span slot="unsupported">请用 Chrome / Edge 打开（需要 Web Serial）</span>
-    <span slot="not-allowed">请用 https 页面访问（GitHub Pages 已满足）</span>
-  </esp-web-install-button>
-  <div class="tip">点击后浏览器弹出串口选择 → 选接入设备的 USB 串口 → 等待进度条完成（固件为 GitHub Release 最新 merged.bin）。</div>
+  <button class="btn-primary" id="flashBtn" onclick="flashFirmware()">🔌 选择串口并刷写固件</button>
+  <div class="tip">点击后浏览器弹出串口选择 → 选接入设备的 USB 串口 → 自动下载最新固件并烧录（进度见下方日志）。请用 Chrome / Edge 打开。</div>
+  <div id="log"></div>
 </div>
 
 <div class="card">
@@ -59,18 +53,48 @@ esp-web-install-button::part(button){background:#0969da;color:#fff;border:none;b
   <div style="display:flex;gap:8px;margin-top:12px">
     <button class="btn-ghost" onclick="openSerial()">串口连接</button>
     <button class="btn-primary" onclick="sendCfg()" id="sendBtn" disabled>💾 保存配置</button>
+    <button class="btn-ghost" onclick="reboot()">重启</button>
   </div>
-  <div id="cfgStatus" class="tip">连接串口后可保存配置；保存后设备会提示重启。</div>
-  <div id="log"></div>
+  <div id="cfgStatus" class="tip">连接串口后可保存配置；保存后点“重启”生效。</div>
 </div>
 
-<script type="module" src="https://unpkg.com/esp-web-flasher@2/dist/esp-web-flasher.bundle.js"></script>
 <script>
+const logEl = document.getElementById('log');
+function log(msg){ logEl.style.display='block'; logEl.textContent += msg + '\n'; logEl.scrollTop = logEl.scrollHeight; }
+
+/* ---------- ① 刷写固件（esptool-js 本地库） ---------- */
+async function flashFirmware(){
+  const btn = document.getElementById('flashBtn');
+  btn.disabled = true;
+  try {
+    log('--- 读取刷写清单 ---');
+    const manifest = await (await fetch('./manifest.json')).json();
+    const build = manifest.builds[0];
+    const fileArray = [];
+    for (const part of build.parts) {
+      log('下载 ' + part.path.split('/').pop() + ' ...');
+      const resp = await fetch(part.path);
+      if (!resp.ok) throw new Error('下载失败 HTTP ' + resp.status);
+      const data = new Uint8Array(await resp.arrayBuffer());
+      fileArray.push({ data, address: part.offset });
+      log('  已下载 ' + (data.length/1024).toFixed(0) + ' KB');
+    }
+    log('--- 连接串口（请在弹出的列表选设备）---');
+    const { connect } = await import('./vendor/dist/index.js');
+    const loader = await connect({ log: (m)=>log('  ' + m) });
+    log('--- 写入固件（请勿断开）---');
+    await loader.write_flash({ fileArray, eraseAll: (manifest.new_install_prompt_erase === true) });
+    log('✅ 刷写完成！设备将重启，可到下方“配网”填写网络。');
+  } catch(e){
+    log('❌ 刷写失败: ' + e.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+/* ---------- ② 配网 ---------- */
 let port = null, writer = null;
 
-function log(msg){ const el=document.getElementById('log'); el.style.display='block'; el.textContent += msg + '\n'; el.scrollTop = el.scrollHeight; }
-
-// 串口连接（配网用）
 async function openSerial(){
   if (!('serial' in navigator)) { alert('此浏览器不支持 Web Serial，请用 Chrome/Edge'); return; }
   try {
@@ -82,7 +106,6 @@ async function openSerial(){
   } catch(e){ log('连接失败: ' + e); }
 }
 
-// 城市 → 经纬度（Open-Meteo，免 key，CORS 允许）
 async function geocode(){
   const city = document.getElementById('city').value.trim();
   if (!city) return;
@@ -92,13 +115,12 @@ async function geocode(){
     if (d && d.results && d.results[0]) {
       document.getElementById('lat').value = d.results[0].latitude.toFixed(5);
       document.getElementById('lon').value = d.results[0].longitude.toFixed(5);
-      if (!document.getElementById('ssid').value) document.getElementById('city').value = d.results[0].name;
+      document.getElementById('city').value = d.results[0].name;
       log('城市 → ' + d.results[0].name + ' ' + d.results[0].latitude.toFixed(5) + ',' + d.results[0].longitude.toFixed(5));
     } else log('未找到城市');
   } catch(e){ log('查城市失败: ' + e); }
 }
 
-// 发送 cfg 配置命令到设备串口
 async function sendCfg(){
   if (!port || !writer) { alert('请先连接串口'); return; }
   const parts = [];
@@ -109,26 +131,23 @@ async function sendCfg(){
   const lat = document.getElementById('lat').value.trim();
   const lon = document.getElementById('lon').value.trim();
   if (ssid)  parts.push('ssid=' + ssid);
-  if (ssid && pass) parts.push('pass=' + pass);
+  if (pass)  parts.push('pass=' + pass);
   if (token) parts.push('token=' + token);
   if (city)  parts.push('city=' + city);
   if (lat)   parts.push('lat=' + lat);
   if (lon)   parts.push('lon=' + lon);
   if (!parts.length) { alert('请至少填一项'); return; }
   try {
-    const cmd = 'cfg ' + parts.join(' ') + '\n';
-    await writer.write(new TextEncoder().encode(cmd));
-    log('已发送: cfg ' + parts.map(p=>p.split('=')[0]+'=***').join(' '));
-    await new Promise(r=>setTimeout(r,800));
-    await writer.write(new TextEncoder().encode('h\n'));   // 触发固件输出帮助，便于看到回显
-    log('发送完成。设备串口会回显 [CFG] saved…；如需要立即生效，可下一步发 r 重启。');
+    await writer.write(new TextEncoder().encode('cfg ' + parts.join(' ') + '\n'));
+    log('已发送 cfg（' + parts.map(p=>p.split('=')[0]).join(', ') + '）→ 设备回显 [CFG] saved…');
+    await new Promise(r=>setTimeout(r,600));
+    await writer.write(new TextEncoder().encode('h\n'));
   } catch(e){ log('发送失败: ' + e); }
 }
 
-// 重启设备（使配置生效）
 async function reboot(){
   if (!port || !writer) { alert('请先连接串口'); return; }
-  try { await writer.write(new TextEncoder().encode('r\n')); log('已发送重启 r… 设备将重启并按新配置连接。'); }
+  try { await writer.write(new TextEncoder().encode('r\n')); log('已发送重启，设备将按新配置启动。'); }
   catch(e){ log('发送失败: ' + e); }
 }
 </script>
