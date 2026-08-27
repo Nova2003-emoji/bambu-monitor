@@ -1,13 +1,13 @@
 {
   "name": "Bambu Monitor",
-  "version": "0.0.1",
+  "version": "latest",
   "new_install_prompt_erase": false,
   "builds": [
     {
       "chipFamily": "esp32",
       "parts": [
         {
-          "path": "https://github.com/Nova2003-emoji/bambu-monitor/releases/latest/download/bambu-monitor.ino.merged.bin",
+          "path": "firmware/bambu-monitor.ino.merged.bin",
           "offset": 0
         }
       ]
