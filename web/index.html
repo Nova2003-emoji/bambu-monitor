@@ -116,6 +116,8 @@ select{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;fo
       <input type="password" id="pass" placeholder="WiFi 密码">
       <label>Home Assistant 长期令牌</label>
       <input type="text" id="token" placeholder="HA → 用户资料 → 安全 → 长期访问令牌">
+      <label>打印机实体前缀（HA 里实体名的公共前缀，如 sensor.a1_XXXX；串口命令行见固件说明）</label>
+      <input type="text" id="haent" placeholder="sensor.a1_XXXX_">
       <label>城市 / 经纬度</label>
       <div class="row">
         <input type="text" id="city" placeholder="城市名">
@@ -382,6 +384,7 @@ function handleDeviceLine(line){
     if (map.ssid)  $('ssid').value  = map.ssid;
     if (map.pass)  $('pass').value  = map.pass;
     if (map.token) $('token').value = map.token;
+    if (map.haent) $('haent').value = map.haent;
     if (map.city)  $('city').value  = map.city;
     if (map.lat)   $('lat').value   = map.lat;
     if (map.lon)   $('lon').value   = map.lon;
@@ -402,10 +405,12 @@ async function sendCfg(){
   const parts = [];
   const ssid = $('ssid').value.trim(), pass = $('pass').value.trim();
   const token = $('token').value.trim(), city = $('city').value.trim();
+  const haent = $('haent').value.trim();
   const lat = $('lat').value.trim(), lon = $('lon').value.trim();
   if (ssid)  parts.push('ssid=' + ssid);
   if (pass)  parts.push('pass=' + pass);
   if (token) parts.push('token=' + token);
+  if (haent) parts.push('haent=' + haent);
   if (city)  parts.push('city=' + city);
   if (lat)   parts.push('lat=' + lat);
   if (lon)   parts.push('lon=' + lon);
