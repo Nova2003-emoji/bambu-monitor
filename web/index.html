@@ -271,48 +271,50 @@ async function doFlash(){
     catch(e){ log('❌ ' + e.message); return; }
     log('固件: ' + part.label);
     const full = part.address === 0;
-    if (!full) setStatus('固件更新模式：只写程序区，设备配置保留');
-    else setStatus('全量刷写：设备配置将被清除，刷完需重新配网');
+    setStatus(full ? '全量刷写：设备配置将被清除，刷完需重新配网' : '固件更新模式：只写程序区，设备配置保留');
 
+    // 官方 esptool-js 独占串口
     cfgRun = false;
     try { await cfgReader?.cancel(); } catch(e){}
     try { writer?.releaseLock(); } catch(e){}
     writer = null;
 
-    const { ESPLoader } = await import('./vendor2/dist/index.js');
-    loader = new ESPLoader(port, {
-      log:   (m)=>monLog(m + '\n'),
-      debug: (m)=>monLog(m + '\n'),
-      error: (m)=>{ monLog(m + '\n'); log('⚠ ' + m); },
-      info:  (m)=>monLog(m + '\n'),
+    const { Transport, ESPLoader } = await import('./vendor2/esptool-js.bundle.js');
+    const transport = new Transport(port, true);
+    const esp = new ESPLoader({
+      transport,
+      baudrate: 115200,
+      terminal: { write: (s)=>monLog(s) },
+      debug: false,
     });
 
-    setStatus('初始化（设备自动复位进下载模式）…');
-    await loader.initialize();
-    log('上传加速桩...');
-    stub = await loader.runStub();
+    log('初始化（设备自动复位进下载模式）...');
+    await esp.main();
 
-    const total = part.data.length;
-    let started = false;
-    setStatus(full ? '擦除并写入中，全程约 6-8 分钟…' : '擦除并写入中，约 2-3 分钟…');
-    log('写入 ' + part.label + ' @ 0x' + part.address.toString(16) + ' ...');
-    await stub.flashData(part.data, part.address, (n)=>{
-      if (!started){ started = true; setStatus('写入中…'); }
-      const pct = Math.floor(n / total * 100);
-      $('barFill').style.width = pct + '%';
-      $('flashStatus').textContent = '写入中 ' + pct + '%  (' + (n/1024).toFixed(0) + ' / ' + (total/1024).toFixed(0) + ' KB)';
-      if (pct % 10 === 0) log('  ' + pct + '%');
+    setStatus(full ? '擦除并写入中，全程约 6-8 分钟…' : '擦除并写入中，约 1-2 分钟…');
+    log('写入 @ 0x' + part.address.toString(16) + ' ...');
+    await esp.write_flash({
+      fileArray: [{ data: part.data, address: part.address }],
+      flashSize: 'keep',
+      flashMode: 'keep',
+      flashFreq: 'keep',
+      eraseAll: false,
+      compress: true,
+      reportProgress: (fIdx, written, total) => {
+        const pct = Math.floor(written / total * 100);
+        $('barFill').style.width = pct + '%';
+        setStatus('写入中 ' + pct + '%');
+        if (pct % 10 === 0) log('  ' + pct + '%');
+      },
     });
-    await stub.flashFinish();
+    log('✅ 刷写完成！设备已复位。');
     $('barFill').style.width = '100%';
-    setStatus(full ? '✅ 全量刷写完成！设备重启后需重新配网。' : '✅ 固件更新完成！设备重启后配置保留，直接可用。');
-    log('✅ 刷写完成！');
     setBadge(false);
   } catch(e){
     log('❌ 刷写失败: ' + (e.message||e));
-    setStatus('刷写失败 — 拔插 USB 重试；若反复失败可改用全量刷写');
+    setStatus('刷写失败 — 拔插 USB 后重试');
   } finally {
-    stub = null; loader = null;
+    loader = null; stub = null;
     btn.disabled = false;
     restorePort();
   }
