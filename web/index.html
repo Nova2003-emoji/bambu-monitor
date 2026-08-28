@@ -155,7 +155,7 @@ function monLog(msg){ monEl.textContent += msg; if (monEl.textContent.length > 3
 function setStatus(text){ const el = $('flashStatus'); el.style.display='block'; el.textContent = text; }
 
 /* ---------- 串口连接（统一：刷写/配网复用） ---------- */
-let port = null, writer = null, loader = null, stub = null;
+let port = null, writer = null, loader = null, stub = null, transport = null;
 let cfgReader = null, cfgRun = false, lineBuf = '';
 
 async function connectSerial(){
@@ -285,7 +285,7 @@ async function doFlash(){
     writer = null;
 
     const { Transport, ESPLoader } = await import('./vendor2/esptool-js.bundle.js');
-    const transport = new Transport(port, true);
+    transport = new Transport(port, true);
     const rawConnect = transport.connect.bind(transport);
     transport.connect = async (baud) => {          // 防御：open 前强制端口关闭态
       try { await port.close(); } catch(e){}
@@ -317,7 +317,7 @@ async function doFlash(){
       flashMode: 'keep',
       flashFreq: 'keep',
       eraseAll: false,
-      compress: true,
+      compress: false,   // 压缩写在部分环境报 status 201，非压缩更稳
       reportProgress: (fIdx, written, totalBytes) => {
         const pct = Math.floor(written / totalBytes * 100);
         $('barFill').style.width = pct + '%';
@@ -340,7 +340,8 @@ async function doFlash(){
     log('❌ 刷写失败: ' + (e.message||e));
     setStatus('刷写失败 — 拔插 USB 后重试');
   } finally {
-    loader = null; stub = null;
+    try { await transport?.disconnect(); } catch(e){}   // 释放 esptool 的读锁
+    loader = null; stub = null; transport = null;
     btn.disabled = false;
     restorePort();
   }
