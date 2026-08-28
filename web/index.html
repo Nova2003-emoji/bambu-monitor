@@ -306,13 +306,11 @@ async function doFlash(){
     const chip = await esp.main();
     log('已连接芯片: ' + chip);
 
-    setStatus('下载固件数据...');
-    const fwStr = Array.from(part.data, (b) => String.fromCharCode(b)).join('');
     const total = part.data.length;
     setStatus(full ? '擦除并写入中，全程约 6-8 分钟…' : '擦除并写入中，约 1-2 分钟…');
     log('写入 @ 0x' + part.address.toString(16) + ' ...');
     await esp.writeFlash({
-      fileArray: [{ data: fwStr, address: part.address }],
+      fileArray: [{ data: part.data, address: part.address }],   // esptool-js 官方要求 Uint8Array（#226）
       flashSize: 'keep',
       flashMode: 'keep',
       flashFreq: 'keep',
