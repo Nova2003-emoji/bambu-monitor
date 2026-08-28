@@ -126,7 +126,7 @@ static bool fetchPrinter() {
     "\"at\":{{states('" HA_ENT "ams_1_temperature')|float(0)}},"
     "\"ah\":{{states('" HA_ENT "ams_1_humidity')|float(0)}},"
     "\"trays\":[{%- for i in range(1,5)%}"
-    "{\"n\":{{states('" HA_ENT "ams_1_tray_'~i)|to_json}},\"r\":{{state_attr('" HA_ENT "ams_1_tray_'~i,'remain')}}}"
+    "{\"n\":{{states('" HA_ENT "ams_1_tray_'~i)|to_json}},\"r\":{{state_attr('" HA_ENT "ams_1_tray_'~i,'remain')|int(-1)}}}"
     "{%- if not loop.last%},{%endif%}"
     "{%- endfor%}"
     "]}";
