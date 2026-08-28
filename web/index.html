@@ -413,6 +413,23 @@ async function geocode(){
 
 updateFlashBtn();
 
+// 历史版本列表（Pages 部署生成，cache-bust 防挂）
+fetch('firmware/index.json?t=' + Date.now(), { cache: 'no-store' })
+  .then(r => r.ok ? r.json() : Promise.reject())
+  .then(list => {
+    const sel = $('histSel');
+    sel.innerHTML = '';
+    for (const v of list){
+      const o = document.createElement('option');
+      o.value = v.version;
+      o.textContent = v.version + (v.published ? '  ·  ' + v.published.slice(0, 10) : '');
+      sel.appendChild(o);
+    }
+    log('历史固件 ' + list.length + ' 个版本可用');
+    updateFlashBtn();
+  })
+  .catch(() => { $('histSel').innerHTML = '<option value="">（暂无历史版本）</option>'; });
+
 // 读取同源固件元数据（版本/编译时间，随 Release 发布）
 fetch('firmware/version.json')
   .then(r => r.ok ? r.json() : Promise.reject())
