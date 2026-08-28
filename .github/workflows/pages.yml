@@ -45,7 +45,7 @@ jobs:
           for r in rels:
               tag = r.get("tag_name", "")
               for a in r.get("assets", []):
-                  if a.get("name") == "bambu-monitor.ino.merged.bin":
+                  if a.get("name") == "bambu-monitor.ino.bin":   # 历史=app bin（程序区@0x10000）
                       dst = "web/firmware/" + tag + ".bin"
                       try:
                           urllib.request.urlretrieve(a["browser_download_url"], dst)
