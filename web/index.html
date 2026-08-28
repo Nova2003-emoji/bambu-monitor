@@ -167,7 +167,7 @@ async function connectSerial(){
     await port.open({ baudRate: 115200 });
     writer = port.writable.getWriter();
     setBadge(true);
-    $('sendBtn').disabled = false;
+    if ($('sendBtn')) $('sendBtn').disabled = false;
     lineBuf = '';
     log('串口已连接 ✓');
     readCfgLoop();
@@ -226,6 +226,17 @@ $('fwFile').addEventListener('change', async (e)=>{
 });
 
 // 返回 { data, address, label }：merged → 0x0；app bin → 0x10000
+// 下载固件（cache-bust + 60s 超时，防同源请求挂死无反馈）
+async function downloadFw(url, label, address){
+  url += (url.includes('?') ? '&' : '?') + 't=' + Date.now();
+  log('下载固件: ' + label + ' ...');
+  setStatus('下载固件中…（60 秒超时保护）');
+  const resp = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(60000) });
+  if (!resp.ok) throw new Error('固件获取失败 HTTP ' + resp.status);
+  const data = new Uint8Array(await resp.arrayBuffer());
+  return { data, address, label: label + ' (' + (data.length/1024).toFixed(0) + 'KB)' };
+}
+
 async function getFwPart(){
   const mode = document.querySelector('input[name=fwmode]:checked').value;
   if (fwSource === 'local'){
@@ -235,21 +246,13 @@ async function getFwPart(){
     return { data: fwData, address: addr, label: fwLabel + (addr === 0 ? ' 全量@0x0' : ' 程序区@0x10000') };
   }
   const tag = fwSource === 'hist' ? $('histSel').value : '';
-  let url, label;
   if (fwSource === 'hist'){
     if (!tag) throw new Error('未选择历史版本');
-    url = 'firmware/' + tag + '.bin'; label = tag;
-  } else {
-    url = mode === 'full' ? ONLINE_MERGED : ONLINE_APP;
-    label = mode === 'full' ? '在线最新(全量)' : '在线最新(程序区)';
+    return await downloadFw('firmware/' + tag + '.bin', tag, 0x10000);   // 历史库为 app bin（保留配置）
   }
-  log('下载固件: ' + label + ' ...');
-  const resp = await fetch(url);
-  if (!resp.ok) throw new Error('固件获取失败 HTTP ' + resp.status);
-  const data = new Uint8Array(await resp.arrayBuffer());
-  // 判断内容：merged.bin 文件名含 merged → 0x0；否则 app → 0x10000
-  const addr = url.includes('merged') ? 0 : 0x10000;
-  return { data, address: addr, label: label + ' (' + (data.length/1024).toFixed(0) + 'KB)' };
+  const url = mode === 'full' ? ONLINE_MERGED : ONLINE_APP;
+  const label = mode === 'full' ? '在线最新(全量)' : '在线最新(程序区)';
+  return await downloadFw(url, label, url.includes('merged') ? 0 : 0x10000);
 }
 
 function updateFlashBtn(){
@@ -285,7 +288,11 @@ async function doFlash(){
       transport,
       baudrate: 115200,
       romBaudrate: 115200,
-      terminal: { write: (s)=>{ if (s && s.trim()) monLog(s.trim() + '\n'); } },
+      terminal: {
+        clean: ()=>{},
+        writeLine: (s)=>monLog(s + String.fromCharCode(10)),
+        write: (s)=>{ if (s && s.trim()) monLog(s.trim() + String.fromCharCode(10)); },
+      },
     });
 
     log('初始化（设备自动复位进下载模式）...');
