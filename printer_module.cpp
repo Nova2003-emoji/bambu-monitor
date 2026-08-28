@@ -40,7 +40,6 @@ extern NTPClient timeClient;            // bambu-monitor.ino 定义
 // HA 地址与实体前缀（token 见 config.h，不再硬编码）
 #define HA_HOST   "http://homeassistant.local:8123"
 // Bambu 实体前缀：改从 config.h 读（本地真值；config.example.h 为占位，避免序列号入库）
-#define HA_ENT     HA_ENT_PREF
 
 #define US_FETCH_MS    15000   // 拉取/渲染周期（不深睡，loop 常驻节拍）
 
@@ -68,7 +67,7 @@ static void fetchAmsModel() {
   http.addHeader("Authorization", String("Bearer ") + cfgToken());
   http.addHeader("Content-Type", "application/json");
   String body = String("{\"template\":\"{{ device_attr(device_id('")
-      + HA_ENT + "ams_1_temperature'), 'model') }}\"}";
+      + cfgHaEnt() + "ams_1_temperature'), 'model') }}\"}";
   int code = http.POST(body);
   if (code == 200) {
     String resp = http.getString();
@@ -111,25 +110,26 @@ static String jsonEscape(const String& s) {   // 模板嵌入 POST body 的 JSON
 }
 
 static bool fetchPrinter() {
-  String tmpl = "{"
-    "\"p\":{{states('" HA_ENT "print_progress')|int(-1)}},"
-    "\"l\":{{states('" HA_ENT "current_layer')|int(-1)}},"
-    "\"t\":{{states('" HA_ENT "total_layer_count')|int(-1)}},"
-    "\"b\":{{states('" HA_ENT "bed_temperature')|float(0)}},"
-    "\"n\":{{states('" HA_ENT "nozzle_temperature')|float(0)}},"
-    "\"bt\":{{states('" HA_ENT "bed_target_temperature')|float(0)}},"
-    "\"nt\":{{states('" HA_ENT "nozzle_target_temperature')|float(0)}},"
-    "\"r\":{{states('" HA_ENT "remaining_time')|float(0)}},"
-    "\"s\":{{states('" HA_ENT "print_status')|to_json}},"
-    "\"j\":{{states('" HA_ENT "task_name')|to_json}},"
-    "\"et\":{{states('" HA_ENT "end_time')|to_json}},"
-    "\"at\":{{states('" HA_ENT "ams_1_temperature')|float(0)}},"
-    "\"ah\":{{states('" HA_ENT "ams_1_humidity')|float(0)}},"
-    "\"trays\":[{%- for i in range(1,5)%}"
-    "{\"n\":{{states('" HA_ENT "ams_1_tray_'~i)|to_json}},\"r\":{{state_attr('" HA_ENT "ams_1_tray_'~i,'remain')|int(-1)}}}"
-    "{%- if not loop.last%},{%endif%}"
-    "{%- endfor%}"
-    "]}";
+  const char* E = cfgHaEnt();          // 实体前缀：NVS 优先（网页可配），config.h 宏兜底
+  String tmpl = "{";
+  tmpl += "\"p\":{{states('"; tmpl += E; tmpl += "print_progress')|int(-1)}},";
+  tmpl += "\"l\":{{states('"; tmpl += E; tmpl += "current_layer')|int(-1)}},";
+  tmpl += "\"t\":{{states('"; tmpl += E; tmpl += "total_layer_count')|int(-1)}},";
+  tmpl += "\"b\":{{states('"; tmpl += E; tmpl += "bed_temperature')|float(0)}},";
+  tmpl += "\"n\":{{states('"; tmpl += E; tmpl += "nozzle_temperature')|float(0)}},";
+  tmpl += "\"bt\":{{states('"; tmpl += E; tmpl += "bed_target_temperature')|float(0)}},";
+  tmpl += "\"nt\":{{states('"; tmpl += E; tmpl += "nozzle_target_temperature')|float(0)}},";
+  tmpl += "\"r\":{{states('"; tmpl += E; tmpl += "remaining_time')|float(0)}},";
+  tmpl += "\"s\":{{states('"; tmpl += E; tmpl += "print_status')|to_json}},";
+  tmpl += "\"j\":{{states('"; tmpl += E; tmpl += "task_name')|to_json}},";
+  tmpl += "\"et\":{{states('"; tmpl += E; tmpl += "end_time')|to_json}},";
+  tmpl += "\"at\":{{states('"; tmpl += E; tmpl += "ams_1_temperature')|float(0)}},";
+  tmpl += "\"ah\":{{states('"; tmpl += E; tmpl += "ams_1_humidity')|float(0)}},";
+  tmpl += "\"trays\":[{%- for i in range(1,5)%}";
+  tmpl += "{\"n\":{{states('"; tmpl += E; tmpl += "ams_1_tray_'~i)|to_json}},\"r\":{{state_attr('"; tmpl += E; tmpl += "ams_1_tray_'~i,'remain')|int(-1)}}}";
+  tmpl += "{%- if not loop.last%},{%endif%}";
+  tmpl += "{%- endfor%}";
+  tmpl += "]}";
 
   HTTPClient http;
   http.setTimeout(8000);
@@ -627,7 +627,11 @@ void printer_loop() {
       uint32_t block = now_sec / 300;                  // 5 分钟块号
       if (block != last_full_block) { last_full_block = block; fiveMinFull = true; }
     }
-    if (!disp_ready || !ok || strcmp(lastState, ps.state) != 0 || strcmp(lastJob, ps.job) != 0 ||
+    // 数据获取失败时不反复全刷（离线/占位实体会每轮失败）——60s 节流一次
+    static uint32_t last_fail_full = 0;
+    bool failFull = (!ok || !psValid) && (millis() - last_fail_full > 60000);
+    if (failFull) last_fail_full = millis();
+    if (!disp_ready || failFull || strcmp(lastState, ps.state) != 0 || strcmp(lastJob, ps.job) != 0 ||
         fiveMinFull) {
       disp_ready = true;                // 全刷后置位（进入时强制全刷）
       snprintf(lastState, sizeof(lastState), "%s", ps.state);

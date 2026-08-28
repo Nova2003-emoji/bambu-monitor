@@ -12,7 +12,7 @@ extern void appSwitchManual(uint8_t runMode);   // 主文件定义（手动切�
 
 // 解析 "cfg key=value key=value ..."（空格分隔）并写入 NVS
 static void serialCfg(const char* line) {
-  String ssid, pass, token, city, lat, lon;
+  String ssid, pass, token, city, lat, lon, haent;
   const char* p = line + 3;   // 跳过 "cfg"
   while (*p) {
     while (*p == ' ' || *p == '\t') p++;
@@ -26,6 +26,7 @@ static void serialCfg(const char* line) {
     if      (key == "ssid")  ssid  = val;
     else if (key == "pass")  pass  = val;
     else if (key == "token") token = val;
+    else if (key == "haent") haent = val;
     else if (key == "city")  city  = val;
     else if (key == "lat")   lat   = val;
     else if (key == "lon")   lon   = val;
@@ -35,6 +36,7 @@ static void serialCfg(const char* line) {
   int n = 0;
   if (ssid.length())  { cfgSaveWifi(ssid.c_str(), pass.c_str()); n++; }
   if (token.length()) { cfgSaveToken(token.c_str());             n++; }
+  if (haent.length()) { cfgSaveHaEnt(haent.c_str());             n++; }
   if (city.length())  { cfgSaveCity(city.c_str(),
                         lat.length() ? lat.c_str() : cfgLat(),
                         lon.length() ? lon.c_str() : cfgLon());  n++; }
@@ -64,8 +66,8 @@ static void serialControl() {
         Serial.println("[SERIAL]   cfgget / cfgwipe");
       } else if (line == "cfgget") {
         // 输出当前配置（网页“读取配置”解析 [CFGD] 行填表单）
-        Serial.printf("[CFGD] ssid=%s pass=%s token=%s city=%s lat=%s lon=%s" NL_BSN,
-          cfgSsid(), cfgPass(), cfgToken(), cfgCity(), cfgLat(), cfgLon());
+        Serial.printf("[CFGD] ssid=%s pass=%s token=%s haent=%s city=%s lat=%s lon=%s" NL_BSN,
+          cfgSsid(), cfgPass(), cfgToken(), cfgHaEnt(), cfgCity(), cfgLat(), cfgLon());
       } else if (line == "cfgwipe") {
         cfgWipe();
         Serial.println("[CFG] config wiped, defaults restored. Send r to reboot." NL_BSN);

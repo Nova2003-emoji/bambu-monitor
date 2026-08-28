@@ -42,6 +42,7 @@ static char cfg_lon[16]  = WEATHER_LON;
 static char cfg_ssid[32] = STA_SSID;
 static char cfg_pass[64] = STA_PASSWORD;
 static char cfg_token[192] = HA_TOKEN;
+static char cfg_haent[64] = HA_ENT_PREF;
 
 void cfgLoad() {
   prefs.begin("cfg", true);   // 只读打开
@@ -51,6 +52,7 @@ void cfgLoad() {
   prefs.getString("wifi_ssid", cfg_ssid, sizeof(cfg_ssid));
   prefs.getString("wifi_pass", cfg_pass, sizeof(cfg_pass));
   prefs.getString("token", cfg_token, sizeof(cfg_token));
+  prefs.getString("haent", cfg_haent, sizeof(cfg_haent));
   prefs.end();
   Serial.printf("[CFG] city=%s lat=%s lon=%s ssid=%s" NL_BSN,
     cfg_city, cfg_lat, cfg_lon, cfg_ssid[0] ? cfg_ssid : "(nvs-default)");
@@ -84,6 +86,15 @@ void cfgSaveToken(const char* tk) {
 }
 
 const char* cfgToken() { return cfg_token; }
+
+void cfgSaveHaEnt(const char* e) {
+  snprintf(cfg_haent, sizeof(cfg_haent), "%s", e);
+  prefs.begin("cfg", false);
+  prefs.putString("haent", cfg_haent);
+  prefs.end();
+}
+
+const char* cfgHaEnt() { return cfg_haent; }
 
 void cfgWipe() {
   prefs.begin("cfg", false);
