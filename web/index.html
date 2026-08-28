@@ -177,9 +177,10 @@ async function connectSerial(){
 async function closePortForFlash(){
   cfgRun = false;
   try { await cfgReader?.cancel(); } catch(e){}
+  try { cfgReader?.releaseLock(); } catch(e){}   // 必须释放读锁，否则 port.close() 抛 locked streams
   try { writer?.releaseLock(); } catch(e){}
-  writer = null;
-  try { await port.close(); } catch(e){}   // 必须真正关闭：esptool 接管时端口不能处于打开状态
+  writer = null; cfgReader = null;
+  try { await port.close(); } catch(e){ log('⚠ 端口关闭失败: ' + (e.message||e)); }
 }
 
 async function restorePort(){
