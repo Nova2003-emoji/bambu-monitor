@@ -155,6 +155,9 @@ static void renderConfigScreen() {
       uiDrawTextU8g2(vx, 142, cfgLat(), heise);
       cfgTextRight(170, "LON", colEnd);
       uiDrawTextU8g2(vx, 170, cfgLon(), heise);
+      char fwbuf[48];
+      snprintf(fwbuf, sizeof(fwbuf), "FW %s %s", FW_VERSION, FW_BUILT);
+      uiDrawTextU8g2(16, 192, fwbuf, heise);
       uiDrawTextU8g2(16, 206, "Browse to IP to configure", heise);
       uiDrawTextU8g2(16, 234, "WiFi stays connected", heise);
     }
