@@ -109,9 +109,53 @@ static String jsonEscape(const String& s) {   // 模板嵌入 POST body 的 JSON
   return out;
 }
 
+// ---------------- 实体前缀自动发现 ----------------
+// 从 HA 全量传感器中匹配 *_print_progress 结尾的实体，反推实体前缀
+// （如 sensor.a1_03919d552104522_print_progress → sensor.a1_03919d552104522_）。
+// NVS 前缀为空/占位时自动触发；多台打印机取第一台（可在网页手动覆盖）。
+static bool autoDiscoverEntity() {
+  HTTPClient http;
+  http.setTimeout(8000);
+  http.begin(String(HA_HOST) + "/api/template");
+  http.addHeader("Authorization", String("Bearer ") + cfgToken());
+  http.addHeader("Content-Type", "application/json");
+  String tmpl = "{{ states.sensor | selectattr('entity_id','search','_print_progress$') "
+                "| map(attribute='entity_id') | list | to_json }}";
+  int code = http.POST("{\"template\":\"" + jsonEscape(tmpl) + "\"}");
+  if (code != 200) { Serial.printf("[HA] discover -> %d" NL_BSN, code); http.end(); return false; }
+  String resp = http.getString();
+  http.end();
+
+  JsonDocument doc;
+  if (deserializeJson(doc, resp)) return false;
+  const char* first = doc[0] | "";
+  const char* tail = "_print_progress";
+  if (!first[0]) return false;
+  const char* pos = strstr(first, tail);
+  if (!pos || pos == first) return false;   // 无匹配实体
+  String prefix = String(first).substring(0, pos - first);
+  if (prefix.length() < 5) return false;
+  cfgSaveHaEnt(prefix.c_str());
+  Serial.printf("[HA] entity prefix auto-discovered: %s" NL_BSN, prefix.c_str());
+  return true;
+}
+
 static bool fetchPrinter() {
-  const char* E = cfgHaEnt();          // 实体前缀：NVS 优先（网页可配），config.h 宏兜底
-  String tmpl = "{";
+  // 实体前缀自动发现（NVS 为空/占位时自动触发；成功前每轮 fetch 都跳过数据请求）
+  static bool discovered = false;        // 生命周期内只发现一次
+  const char* E = cfgHaEnt();
+  if (!discovered && (!E[0] || strstr(E, "CHANGEME"))) {
+    discovered = autoDiscoverEntity();   // 成功后 NVS/内存缓冲已是新前缀
+    E = cfgHaEnt();                      // 重读（发现成功则为新前缀）
+    if (!discovered) {                   // 失败：本轮跳过数据请求（避免占位模板刷屏），60s 后随下一轮重试
+      static uint32_t last_try = 0;
+      if (millis() - last_try < 60000) return false;
+      last_try = millis();
+    }
+  } else if (E[0] && !strstr(E, "CHANGEME")) {
+    discovered = true;                   // NVS 已有真实前缀
+  }
+    String tmpl = "{";
   tmpl += "\"p\":{{states('"; tmpl += E; tmpl += "print_progress')|int(-1)}},";
   tmpl += "\"l\":{{states('"; tmpl += E; tmpl += "current_layer')|int(-1)}},";
   tmpl += "\"t\":{{states('"; tmpl += E; tmpl += "total_layer_count')|int(-1)}},";
@@ -137,12 +181,11 @@ static bool fetchPrinter() {
   http.addHeader("Authorization", String("Bearer ") + cfgToken());
   http.addHeader("Content-Type", "application/json");
   int code = http.POST("{\"template\":\"" + jsonEscape(tmpl) + "\"}");
+  String resp = (code == 200) ? http.getString() : String("");
   if (code != 200) {
-    Serial.printf("[HA] template -> %d" NL_BSN, code);
     http.end();
     return false;
   }
-  String resp = http.getString();
   http.end();
 
   JsonDocument doc;
