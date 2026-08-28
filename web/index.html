@@ -179,6 +179,7 @@ async function closePortForFlash(){
   try { await cfgReader?.cancel(); } catch(e){}
   try { writer?.releaseLock(); } catch(e){}
   writer = null;
+  try { await port.close(); } catch(e){}   // 必须真正关闭：esptool 接管时端口不能处于打开状态
 }
 
 async function restorePort(){
