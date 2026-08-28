@@ -286,6 +286,11 @@ async function doFlash(){
 
     const { Transport, ESPLoader } = await import('./vendor2/esptool-js.bundle.js');
     const transport = new Transport(port, true);
+    const rawConnect = transport.connect.bind(transport);
+    transport.connect = async (baud) => {          // 防御：open 前强制端口关闭态
+      try { await port.close(); } catch(e){}
+      await rawConnect(baud);
+    };
     const esp = new ESPLoader({
       transport,
       baudrate: 115200,
