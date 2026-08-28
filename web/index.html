@@ -32,13 +32,17 @@ label{display:block;font-size:13px;font-weight:600;color:#374151;margin:14px 0 6
 input[type=text],input[type=password]{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:14px;font-family:inherit}
 input:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(37,99,235,.12)}
 .row{display:flex;gap:8px}.row input{flex:1;min-width:0}
-.fw-meta{font-size:12px;color:var(--sub);margin-top:10px}
 .hint{font-size:12px;color:var(--sub);margin-top:6px;line-height:1.6}
 .src{display:flex;gap:8px;margin-bottom:10px}
 .src button{flex:1;padding:9px;font-size:13px;background:#fff;border:1px solid var(--line);color:var(--sub)}
 .src button.on{border-color:var(--brand);color:var(--brand);background:#eff6ff;font-weight:700}
+select{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:14px}
+.mode{display:flex;gap:8px;margin-top:10px}
+.mode label{flex:1;display:flex;align-items:flex-start;gap:6px;margin:0;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:12px;font-weight:400;color:#555;cursor:pointer;line-height:1.5}
+.mode input{margin-top:2px}
 .bar{height:8px;background:var(--line);border-radius:999px;overflow:hidden;margin-top:12px;display:none}
 .bar-fill{height:100%;width:0;background:var(--brand);transition:width .3s}
+#flashStatus{font-size:13px;font-weight:600;margin-top:10px;display:none}
 #log,#serialMon{background:#0d1117;color:#8ddb8c;font-size:12px;line-height:1.6;padding:12px;border-radius:8px;margin-top:12px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;font-family:ui-monospace,Consolas,monospace}
 #log{max-height:150px}
 #serialMon{height:480px}
@@ -47,6 +51,7 @@ input:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(37,
 .mon-head h2{margin:0}
 .mon-head button{padding:5px 12px;font-size:12px}
 .actions{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+.fw-meta{font-size:12px;color:var(--sub);margin-top:10px}
 </style>
 </head>
 <body>
@@ -74,10 +79,10 @@ input:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(37,
         <div class="hint">使用最新正式版固件，点下方「开始刷写」会自动获取。</div>
       </div>
       <div id="srcHistBox" style="display:none">
-        <select id="histSel" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:14px">
+        <select id="histSel">
           <option value="">（加载中…）</option>
         </select>
-        <div class="hint">选择要烧写的历史版本（随本页同源托管）。</div>
+        <div class="hint">选择要烧写的历史版本。</div>
       </div>
       <div id="srcLocalBox" style="display:none">
         <label class="btn-ghost" style="display:block;text-align:center;padding:12px;cursor:pointer">📁 选择本地固件文件（merged.bin / .bin）
@@ -85,14 +90,21 @@ input:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(37,
         </label>
         <div class="hint" id="fwName">未选择文件</div>
       </div>
+      <div class="mode">
+        <label><input type="radio" name="fwmode" value="update" checked>
+          <b>固件更新</b>（推荐）— 只写程序区，约 1/3 时间，<b>保留设备配置</b></label>
+        <label><input type="radio" name="fwmode" value="full">
+          <b>全量刷写</b> — 刷 merged.bin 整个分区（含 bootloader），<b>清除全部配置</b>，设备恢复出厂</label>
+      </div>
     </div>
 
     <div class="card">
       <h2><span class="step-num">3</span> 刷写</h2>
       <button class="btn-big" id="flashBtn" onclick="doFlash()" disabled>⚡ 开始刷写</button>
       <div class="bar" id="bar"><div class="bar-fill" id="barFill"></div></div>
+      <div id="flashStatus"></div>
+      <div class="hint" id="flashHint">连接设备并选择固件后开始。</div>
       <div class="fw-meta" id="fwMeta">固件版本：获取中…</div>
-      <div class="hint">连接设备并选择固件后开始。4MB 全量约 6-8 分钟，全程勿拔线。</div>
       <div id="log"></div>
     </div>
 
@@ -140,11 +152,7 @@ const $ = id => document.getElementById(id);
 const logEl = $('log'), monEl = $('serialMon');
 function log(msg){ logEl.style.display='block'; logEl.textContent += msg + '\n'; logEl.scrollTop = logEl.scrollHeight; }
 function monLog(msg){ monEl.textContent += msg; if (monEl.textContent.length > 30000) monEl.textContent = monEl.textContent.slice(-20000); monEl.scrollTop = monEl.scrollHeight; }
-function setBadge(on, name){
-  const b = $('connBadge');
-  b.className = 'badge' + (on ? ' on' : '');
-  b.textContent = on ? ('已连接' + (name ? ' · ' + name : '')) : '未连接';
-}
+function setStatus(text){ const el = $('flashStatus'); el.style.display='block'; el.textContent = text; }
 
 /* ---------- 串口连接（统一：刷写/配网复用） ---------- */
 let port = null, writer = null, loader = null, stub = null;
@@ -184,9 +192,17 @@ async function restorePort(){
   } catch(e){ log('串口恢复失败，请刷新页面重连'); }
 }
 
+function setBadge(on){
+  const b = $('connBadge');
+  b.className = 'badge' + (on ? ' on' : '');
+  b.textContent = on ? '已连接' : '未连接';
+}
+
 /* ---------- 固件来源 ---------- */
-let fwSource = 'online';   // 'online' | 'local'
+let fwSource = 'online';   // 'online' | 'hist' | 'local'
 let fwData = null, fwLabel = '';
+const ONLINE_APP  = 'firmware/bambu-monitor.ino.bin';        // 仅程序区（固件更新，保留配置）
+const ONLINE_MERGED = 'firmware/bambu-monitor.ino.merged.bin'; // 全量镜像（含 bootloader）
 
 function setSrc(s){
   fwSource = s;
@@ -209,27 +225,31 @@ $('fwFile').addEventListener('change', async (e)=>{
   updateFlashBtn();
 });
 
-const ONLINE_FW = 'firmware/bambu-monitor.ino.merged.bin';   // 同源固件（Pages 部署时自动从 Release 拉取）
-
-async function getFwData(){
+// 返回 { data, address, label }：merged → 0x0；app bin → 0x10000
+async function getFwPart(){
+  const mode = document.querySelector('input[name=fwmode]:checked').value;
   if (fwSource === 'local'){
     if (!fwData) throw new Error('未选择本地固件文件');
-    return { data: fwData, label: fwLabel };
+    const isMerged = fwLabel.includes('merged');
+    const addr = (mode === 'full' && isMerged) ? 0 : 0x10000;
+    return { data: fwData, address: addr, label: fwLabel + (addr === 0 ? ' 全量@0x0' : ' 程序区@0x10000') };
   }
+  const tag = fwSource === 'hist' ? $('histSel').value : '';
+  let url, label;
   if (fwSource === 'hist'){
-    const tag = $('histSel').value;
     if (!tag) throw new Error('未选择历史版本');
-    log('下载历史固件 ' + tag + ' ...');
-    const resp = await fetch('firmware/' + tag + '.bin');
-    if (!resp.ok) throw new Error('获取失败 HTTP ' + resp.status);
-    const data = new Uint8Array(await resp.arrayBuffer());
-    return { data, label: tag + ' (' + (data.length/1024).toFixed(0) + 'KB)' };
+    url = 'firmware/' + tag + '.bin'; label = tag;
+  } else {
+    url = mode === 'full' ? ONLINE_MERGED : ONLINE_APP;
+    label = mode === 'full' ? '在线最新(全量)' : '在线最新(程序区)';
   }
-  log('下载在线固件（同源 firmware/merged.bin）...');
-  const resp = await fetch(ONLINE_FW);
-  if (!resp.ok) throw new Error('在线固件获取失败 HTTP ' + resp.status + '（页面部署时若 Release 为空则无固件）');
+  log('下载固件: ' + label + ' ...');
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error('固件获取失败 HTTP ' + resp.status);
   const data = new Uint8Array(await resp.arrayBuffer());
-  return { data, label: '在线最新 (' + (data.length/1024).toFixed(0) + 'KB)' };
+  // 判断内容：merged.bin 文件名含 merged → 0x0；否则 app → 0x10000
+  const addr = url.includes('merged') ? 0 : 0x10000;
+  return { data, address: addr, label: label + ' (' + (data.length/1024).toFixed(0) + 'KB)' };
 }
 
 function updateFlashBtn(){
@@ -238,35 +258,22 @@ function updateFlashBtn(){
 }
 $('histSel').addEventListener('change', updateFlashBtn);
 
-// 历史版本列表（Pages 部署时生成）
-fetch('firmware/index.json')
-  .then(r => r.ok ? r.json() : Promise.reject())
-  .then(list => {
-    const sel = $('histSel');
-    sel.innerHTML = '';
-    for (const v of list){
-      const o = document.createElement('option');
-      o.value = v.version;
-      o.textContent = v.version + (v.published ? '  ·  ' + v.published.slice(0, 10) : '');
-      sel.appendChild(o);
-    }
-    log('历史固件 ' + list.length + ' 个版本可用（固件来源 → 历史版本）');
-  })
-  .catch(() => { $('histSel').innerHTML = '<option value="">（暂无历史版本）</option>'; });
-
 /* ---------- 刷写 ---------- */
 async function doFlash(){
   if (!port){ alert('请先连接串口'); return; }
   const btn = $('flashBtn');
   btn.disabled = true;
   $('bar').style.display = 'block';
+  $('barFill').style.width = '0%';
   try {
-    let fw;
-    try { fw = await getFwData(); }
+    let part;
+    try { part = await getFwPart(); }
     catch(e){ log('❌ ' + e.message); return; }
-    log('固件: ' + fw.label);
+    log('固件: ' + part.label);
+    const full = part.address === 0;
+    if (!full) setStatus('固件更新模式：只写程序区，设备配置保留');
+    else setStatus('全量刷写：设备配置将被清除，刷完需重新配网');
 
-    // 配网监视让位，esptool 接管同一端口
     cfgRun = false;
     try { await cfgReader?.cancel(); } catch(e){}
     try { writer?.releaseLock(); } catch(e){}
@@ -280,24 +287,30 @@ async function doFlash(){
       info:  (m)=>monLog(m + '\n'),
     });
 
-    log('初始化（设备将自动复位进入下载模式）...');
+    setStatus('初始化（设备自动复位进下载模式）…');
     await loader.initialize();
     log('上传加速桩...');
     stub = await loader.runStub();
 
-    log('写入固件，4MB 约 6-8 分钟，勿拔线...');
-    const total = fw.data.length;
-    await stub.flashData(fw.data, 0, (n)=>{
+    const total = part.data.length;
+    let started = false;
+    setStatus(full ? '擦除并写入中，全程约 6-8 分钟…' : '擦除并写入中，约 2-3 分钟…');
+    log('写入 ' + part.label + ' @ 0x' + part.address.toString(16) + ' ...');
+    await stub.flashData(part.data, part.address, (n)=>{
+      if (!started){ started = true; setStatus('写入中…'); }
       const pct = Math.floor(n / total * 100);
       $('barFill').style.width = pct + '%';
-      log('  ' + pct + '%  (' + (n/1024).toFixed(0) + ' / ' + (total/1024).toFixed(0) + ' KB)');
+      $('flashStatus').textContent = '写入中 ' + pct + '%  (' + (n/1024).toFixed(0) + ' / ' + (total/1024).toFixed(0) + ' KB)';
+      if (pct % 10 === 0) log('  ' + pct + '%');
     });
     await stub.flashFinish();
     $('barFill').style.width = '100%';
-    log('✅ 刷写完成！设备将自动重启。');
+    setStatus(full ? '✅ 全量刷写完成！设备重启后需重新配网。' : '✅ 固件更新完成！设备重启后配置保留，直接可用。');
+    log('✅ 刷写完成！');
     setBadge(false);
   } catch(e){
     log('❌ 刷写失败: ' + (e.message||e));
+    setStatus('刷写失败 — 拔插 USB 重试；若反复失败可改用全量刷写');
   } finally {
     stub = null; loader = null;
     btn.disabled = false;
