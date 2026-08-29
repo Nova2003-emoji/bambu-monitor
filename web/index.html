@@ -58,14 +58,14 @@ select{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;fo
 <div class="wrap">
   <div class="col">
     <h1>🖥️ Bambu Monitor 刷写 & 配网</h1>
-    <div class="sub">浏览器 Web Serial 直连设备——数据只在本机与设备之间，不上传任何服务器。</div>
+    <div class="sub">连接设备，选择固件，开始刷写。</div>
 
     <div class="card">
       <h2><span class="step-num">1</span> 连接设备
         <span class="badge" id="connBadge" style="margin-left:auto">未连接</span>
       </h2>
       <button class="btn-big" id="connBtn" onclick="connectSerial()">🔌 连接串口</button>
-      <div class="hint">Chrome / Edge 打开；连接后刷写与配网共用此串口，无需重复选择。</div>
+      
     </div>
 
     <div class="card">
@@ -76,25 +76,25 @@ select{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;fo
         <button id="srcLocal" onclick="setSrc('local')">本地文件</button>
       </div>
       <div id="srcOnlineBox">
-        <div class="hint">使用最新正式版固件，点下方「开始刷写」会自动获取。</div>
+        
       </div>
       <div id="srcHistBox" style="display:none">
         <select id="histSel">
           <option value="">（加载中…）</option>
         </select>
-        <div class="hint">选择要烧写的历史版本。</div>
+        
       </div>
       <div id="srcLocalBox" style="display:none">
         <label class="btn-ghost" style="display:block;text-align:center;padding:12px;cursor:pointer">📁 选择本地固件文件（merged.bin / .bin）
           <input type="file" id="fwFile" accept=".bin" style="display:none">
         </label>
-        <div class="hint" id="fwName">未选择文件</div>
+        <div class="hint" id="fwName"></div>
       </div>
       <div class="mode">
         <label><input type="radio" name="fwmode" value="update" checked>
-          <b>固件更新</b>（推荐）— 只写程序区，约 1/3 时间，<b>保留设备配置</b></label>
+          <b>固件更新</b>（推荐）— 保留设备配置</label>
         <label><input type="radio" name="fwmode" value="full">
-          <b>全量刷写</b> — 刷 merged.bin 整个分区（含 bootloader），<b>清除全部配置</b>，设备恢复出厂</label>
+          <b>全量刷写</b> — 清除全部配置，恢复出厂</label>
       </div>
     </div>
 
@@ -103,8 +103,8 @@ select{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;fo
       <button class="btn-big" id="flashBtn" onclick="doFlash()" disabled>⚡ 开始刷写</button>
       <div class="bar" id="bar"><div class="bar-fill" id="barFill"></div></div>
       <div id="flashStatus"></div>
-      <div class="hint" id="flashHint">连接设备并选择固件后开始。</div>
-      <div class="fw-meta" id="fwMeta">固件版本：获取中…</div>
+      
+      <div class="fw-meta" id="fwMeta"></div>
       <div id="log"></div>
     </div>
 
@@ -116,8 +116,8 @@ select{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;fo
       <input type="password" id="pass" placeholder="WiFi 密码">
       <label>Home Assistant 长期令牌</label>
       <input type="text" id="token" placeholder="HA → 用户资料 → 安全 → 长期访问令牌">
-      <label>打印机实体前缀（HA 里实体名的公共前缀，如 sensor.a1_XXXX；串口命令行见固件说明）</label>
-      <input type="text" id="haent" placeholder="sensor.a1_XXXX_">
+      <label>打印机实体前缀（留空自动识别）</label>
+      <input type="text" id="haent" placeholder="留空自动识别">
       <label>城市 / 经纬度</label>
       <div class="row">
         <input type="text" id="city" placeholder="城市名">
@@ -133,7 +133,7 @@ select{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;fo
         <button class="btn-danger" onclick="wipeCfg()">🗑 清空配置</button>
         <button class="btn-ghost" onclick="reboot()">🔄 重启</button>
       </div>
-      <div class="hint">读取配置会自动填充表单；保存后点重启生效；清空配置恢复出厂（需重新配网）。</div>
+      
     </div>
   </div>
 
