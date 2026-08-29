@@ -133,7 +133,7 @@ static bool autoDiscoverEntity() {
   if (!first[0]) return false;
   const char* pos = strstr(first, tail);
   if (!pos || pos == first) return false;   // 无匹配实体
-  String prefix = String(first).substring(0, pos - first);
+  String prefix = String(first).substring(0, pos - first + 1);   // 含尾下划线（pos 指向 _print_progress 的下划线）
   if (prefix.length() < 5) return false;
   cfgSaveHaEnt(prefix.c_str());
   Serial.printf("[HA] entity prefix auto-discovered: %s" NL_BSN, prefix.c_str());
@@ -182,6 +182,7 @@ static bool fetchPrinter() {
   http.addHeader("Content-Type", "application/json");
   int code = http.POST("{\"template\":\"" + jsonEscape(tmpl) + "\"}");
   String resp = (code == 200) ? http.getString() : String("");
+  Serial.printf("[HA][dbg] E='%.30s' resp=%.80s" NL_BSN, E, resp.c_str());
   if (code != 200) {
     http.end();
     return false;
