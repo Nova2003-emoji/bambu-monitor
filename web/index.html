@@ -111,6 +111,7 @@ select{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;fo
 
     <div class="card">
       <h2><span class="step-num">4</span> 配网 & 令牌</h2>
+      <form id="cfgForm" onsubmit="return false;">
       <label>WiFi 名称</label>
       <input type="text" id="ssid" placeholder="WiFi SSID">
       <label>WiFi 密码</label>
@@ -135,7 +136,7 @@ select{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;fo
         <button class="btn-danger" onclick="wipeCfg()">🗑 清空配置</button>
         <button class="btn-ghost" onclick="reboot()">🔄 重启</button>
       </div>
-      
+      </form>
     </div>
   </div>
 
