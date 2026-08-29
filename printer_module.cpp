@@ -182,7 +182,6 @@ static bool fetchPrinter() {
   http.addHeader("Content-Type", "application/json");
   int code = http.POST("{\"template\":\"" + jsonEscape(tmpl) + "\"}");
   String resp = (code == 200) ? http.getString() : String("");
-  Serial.printf("[HA][dbg] E='%.30s' resp=%.80s" NL_BSN, E, resp.c_str());
   if (code != 200) {
     http.end();
     return false;
