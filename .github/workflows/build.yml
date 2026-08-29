@@ -67,10 +67,8 @@ jobs:
           EOF
           grep -q GDEH042Z96 "$GX/src/GxEPD2.h"
 
-      - name: Write fw_version.h (tag + build time)
-        run: |
-          printf '#pragma once\n#define FW_VERSION "%s"\n#define FW_BUILT "%s"\n' \
-            "${GITHUB_REF_NAME}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > fw_version.h
+      - name: Write fw_version.h CI tag UTC short commit
+        run: printf '#pragma once\n#define FW_VERSION "CI %s"\n#define FW_BUILT "%s UTC commit=%s"\n' "${GITHUB_REF_NAME}" "$(date -u +%Y-%m-%dT%H:%M:%S)" "${GITHUB_SHA:0:7}" > fw_version.h
 
       - name: Generate firmware metadata (version.json)
         run: |
