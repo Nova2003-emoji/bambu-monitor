@@ -50,22 +50,9 @@ arduino-cli upload -p <COM> --fqbn "esp32:esp32:esp32:PartitionScheme=huge_app" 
 
 ## 发布流程（维护者）
 
-```bash
-# 1. 同步源码到发布仓（当前分支的 projects/bambu-monitor → 发布仓根目录）
-bash sync-github.sh          # 仅更新代码与网页，不触发编译
+> 本节仅维护者参考，普通用户无需关注。发布命令在本地维护机执行（发布仓独立于本仓库可见内容）。
 
-# 2. 发布新版本（打 tag 触发 CI 编译 + Release）
-git -C .zcode/tmp/bambu_repo tag vX.Y.Z
-git -C .zcode/tmp/bambu_repo push origin vX.Y.Z
-
-# 3. 刷新网页托管的固件（Pages 部署自动拉取最新 Release）
-git -C .zcode/tmp/bambu_repo commit --allow-empty -m "chore: redeploy pages"
-git -C .zcode/tmp/bambu_repo push origin main
-```
-
-- **CI（build workflow）**：仅 `v*` tag 触发——编译固件，生成 `version.json`（版本/UTC 编译时间/commit）与 `fw_version.h`（固件内嵌版本信息），一并发布到 Release
-- **Pages（pages workflow）**：push main 触发——部署 `web/` 目录到 GitHub Pages，并拉取最新固件与最近 Release 到 `web/firmware/`（同源托管，供网页直接下载）
-- 发布仓为独立仓库（源码快照），本地工作区通过 `sync-github.sh` 单向同步
+发布体系：本地工作区 →（sync 脚本导出）→ 独立发布仓 →（打 tag）→ CI 编译 Release →（Pages 部署）→ 网页托管的固件与工具页同步更新。命令细节见本地维护记录，不在公开文档展开。
 
 ## 参考与借鉴
 
