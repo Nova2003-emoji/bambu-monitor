@@ -218,6 +218,7 @@ function setSrc(s){
   $('srcHistBox').style.display = s === 'hist' ? '' : 'none';
   $('srcLocalBox').style.display = s === 'local' ? '' : 'none';
   updateFlashBtn();
+  updateFwMeta();
 }
 
 $('fwFile').addEventListener('change', async (e)=>{
@@ -264,7 +265,7 @@ function updateFlashBtn(){
   const ready = fwSource === 'local' ? !!fwData : fwSource === 'hist' ? !!$('histSel').value : true;
   $('flashBtn').disabled = !port || !ready;
 }
-$('histSel').addEventListener('change', updateFlashBtn);
+$('histSel').addEventListener('change', () => { updateFlashBtn(); updateFwMeta(); });
 
 /* ---------- 刷写 ---------- */
 async function doFlash(){
@@ -451,6 +452,7 @@ fetch('firmware/index.json?t=' + Date.now(), { cache: 'no-store' })
     const sel = $('histSel');
     sel.innerHTML = '';
     for (const v of list){
+      fwHistByVer[v.version] = v.published;
       const o = document.createElement('option');
       o.value = v.version;
       // ISO UTC → "YYYY-MM-DD HH:MM:SS UTC+8"（本地时区）；版本号补齐对齐
@@ -475,14 +477,46 @@ fetch('firmware/index.json?t=' + Date.now(), { cache: 'no-store' })
     }
     log('历史固件 ' + list.length + ' 个版本可用');
     updateFlashBtn();
+    updateFwMeta();
   })
   .catch(() => { $('histSel').innerHTML = '<option value="">（暂无历史版本）</option>'; });
 
-// 读取同源固件元数据（版本/编译时间，随 Release 发布）
+// 固件元数据：version.json（latest）+ index.json（历史版本时间表）
+let fwMetaLatest = null;     // {version, built}
+let fwHistByVer = {};        // version -> published（ISO UTC）
+function fmtBuilt(built){
+  if (!built) return '';
+  // "2026-08-29T08:21:28Z" → 本地时区 "2026-08-29 16:21:28 UTC+8"
+  const d = new Date(built);
+  const p2 = n => String(n).padStart(2, '0');
+  const off = -d.getTimezoneOffset();
+  const sign = off >= 0 ? '+' : '-';
+  const oh = Math.floor(Math.abs(off) / 60), om = Math.abs(off) % 60;
+  return d.getFullYear() + '-' + p2(d.getMonth()+1) + '-' + p2(d.getDate()) + ' ' +
+         p2(d.getHours()) + ':' + p2(d.getMinutes()) + ':' + p2(d.getSeconds()) +
+         ' UTC' + sign + p2(oh) + (om ? ':' + p2(om) : '');
+}
+function updateFwMeta(){
+  const mode = document.querySelector('input[name=fwmode]:checked').value;
+  if (fwSource === 'local'){
+    $('fwMeta').textContent = fwLabel || '';
+    return;
+  }
+  if (fwSource === 'hist'){
+    const tag = $('histSel').value;
+    const pub = fwHistByVer[tag];
+    $('fwMeta').textContent = '固件 ' + tag + (pub ? ' · 编译于 ' + fmtBuilt(pub) : '');
+    return;
+  }
+  // 在线最新：全量模式刷的是 merged（= latest release 固件）
+  if (fwMetaLatest){
+    $('fwMeta').textContent = '固件 ' + fwMetaLatest.version + ' · 编译于 ' + fmtBuilt(fwMetaLatest.built);
+  }
+}
 fetch('firmware/version.json')
   .then(r => r.ok ? r.json() : Promise.reject())
-  .then(v => { $('fwMeta').textContent = '固件 ' + v.version + ' · 编译于 ' + v.built.replace('T', ' ').replace('Z', ' UTC'); })
-  .catch(() => { $('fwMeta').textContent = '固件版本：未知（当前托管固件无版本信息）'; });
+  .then(v => { fwMetaLatest = v; updateFwMeta(); })
+  .catch(() => {});
 </script>
 </body>
 </html>
