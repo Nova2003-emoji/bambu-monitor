@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Bambu Monitor — 固件刷写 & 配网</title>
+<link rel="icon" type="image/png" href="favicon.png">
 <style>
 :root{
   --ink:#1a1d21; --sub:#6b7280; --line:#e5e7eb; --bg:#f6f7f9;
@@ -113,7 +114,7 @@ select{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;fo
       <label>WiFi 名称</label>
       <input type="text" id="ssid" placeholder="WiFi SSID">
       <label>WiFi 密码</label>
-      <input type="password" id="pass" placeholder="WiFi 密码">
+      <input type="password" id="pass" placeholder="WiFi 密码" autocomplete="new-password">
       <label>Home Assistant 长期令牌</label>
       <input type="text" id="token" placeholder="HA → 用户资料 → 安全 → 长期访问令牌">
       <label>打印机实体前缀（留空自动识别）</label>
