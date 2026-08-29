@@ -128,6 +128,7 @@ select{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;fo
         <input type="text" id="lon" placeholder="经度">
       </div>
       <div class="actions">
+        <div class="hint" style="width:100%;margin-bottom:8px">读取配置会自动填充表单；保存后点重启生效；清空配置恢复出厂（需重新配网）。</div>
         <button class="btn-ghost" onclick="readCfg()">📖 读取配置</button>
         <button class="btn-ghost" onclick="sendCfg()">💾 保存配置</button>
         <button class="btn-danger" onclick="wipeCfg()">🗑 清空配置</button>
