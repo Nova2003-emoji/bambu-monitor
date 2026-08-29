@@ -36,7 +36,7 @@ jobs:
           import json, urllib.request
           try:
               req = urllib.request.Request(
-                  "https://api.github.com/repos/Nova2003-emoji/bambu-monitor/releases?per_page=6",
+                  "https://api.github.com/repos/Nova2003-emoji/bambu-monitor/releases?per_page=100",
                   headers={"User-Agent": "pages-deploy"})
               rels = json.load(urllib.request.urlopen(req))
           except Exception as e:
