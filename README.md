@@ -48,12 +48,6 @@ arduino-cli upload -p <COM> --fqbn "esp32:esp32:esp32:PartitionScheme=huge_app" 
 
 依赖库：GxEPD2（需 Z96 补丁，见 `patches/`）、U8g2_for_Adafruit_GFX、Adafruit GFX、Adafruit BusIO、ArduinoJson、NTPClient、Time。
 
-## 发布流程（维护者）
-
-> 本节仅维护者参考，普通用户无需关注。发布命令在本地维护机执行（发布仓独立于本仓库可见内容）。
-
-发布体系：本地工作区 →（sync 脚本导出）→ 独立发布仓 →（打 tag）→ CI 编译 Release →（Pages 部署）→ 网页托管的固件与工具页同步更新。命令细节见本地维护记录，不在公开文档展开。
-
 ## 参考与借鉴
 
 本项目站在这些开源项目/资料上，感谢原作者：
