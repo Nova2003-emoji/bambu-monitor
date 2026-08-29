@@ -166,11 +166,14 @@ static void renderConfigScreen() {
       uiDrawTextU8g2(vx, 142, cfgLat(), heise);
       cfgTextRight(170, "LON", colEnd);
       uiDrawTextU8g2(vx, 170, cfgLon(), heise);
-      char fwbuf[48];
-      snprintf(fwbuf, sizeof(fwbuf), "FW %s %s", FW_VERSION, FW_BUILT);
-      uiDrawTextU8g2(16, 192, fwbuf, heise);
-      uiDrawTextU8g2(16, 206, "Browse to IP to configure", heise);
-      uiDrawTextU8g2(16, 234, "WiFi stays connected", heise);
+      // 固件信息：来源/版本 + 时间/标识（两行，避免超宽被裁切）
+      char fwVer[40], fwInfo[40];
+      snprintf(fwVer,  sizeof(fwVer),  "FW %s",   FW_VERSION);
+      snprintf(fwInfo, sizeof(fwInfo), "Built: %s", FW_BUILT);
+      uiDrawTextU8g2(16, 192, fwVer,  heise);
+      uiDrawTextU8g2(16, 210, fwInfo, heise);
+      uiDrawTextU8g2(16, 232, "Browse to IP to configure", heise);
+      uiDrawTextU8g2(16, 252, "WiFi stays connected", heise);
     }
     drawFooter();   // 底部统一样式（footer.h）
   } while (display.nextPage());
