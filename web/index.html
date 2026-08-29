@@ -113,21 +113,21 @@ select{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;fo
       <h2><span class="step-num">4</span> 配网 & 令牌</h2>
       <form id="cfgForm" onsubmit="return false;">
       <label>WiFi 名称</label>
-      <input type="text" id="ssid" placeholder="WiFi SSID">
+      <input type="text" id="ssid" placeholder="WiFi SSID" autocomplete="off">
       <label>WiFi 密码</label>
-      <input type="password" id="pass" placeholder="WiFi 密码" autocomplete="new-password">
+      <input type="password" id="pass" placeholder="WiFi 密码" autocomplete="off">
       <label>Home Assistant 长期令牌</label>
-      <input type="text" id="token" placeholder="HA → 用户资料 → 安全 → 长期访问令牌">
+      <input type="text" id="token" placeholder="HA → 用户资料 → 安全 → 长期访问令牌" autocomplete="off">
       <label>打印机实体前缀（留空自动识别）</label>
-      <input type="text" id="haent" placeholder="留空自动识别">
+      <input type="text" id="haent" placeholder="留空自动识别" autocomplete="off">
       <label>城市 / 经纬度</label>
       <div class="row">
-        <input type="text" id="city" placeholder="城市名">
+        <input type="text" id="city" placeholder="城市名" autocomplete="off">
         <button class="btn-ghost" onclick="geocode()">查坐标</button>
       </div>
       <div class="row" style="margin-top:8px">
-        <input type="text" id="lat" placeholder="纬度">
-        <input type="text" id="lon" placeholder="经度">
+        <input type="text" id="lat" placeholder="纬度" autocomplete="off">
+        <input type="text" id="lon" placeholder="经度" autocomplete="off">
       </div>
       <div class="actions">
         <div class="hint" style="width:100%;margin-bottom:8px">读取配置会自动填充表单；保存后点重启生效；清空配置恢复出厂（需重新配网）。</div>
