@@ -23,6 +23,10 @@
 // ---- 默认值（config.h 宏；NVS 有值优先）----
 #include "config.h"
 #include "fw_version.h"      // FW_VERSION/FW_BUILT（CI 编译时生成）
+#include <NTPClient.h>
+#include <TimeLib.h>
+#include <WiFiUdp.h>
+extern NTPClient timeClient;   // bambu-monitor.ino 全局
 #ifndef WEATHER_LAT
 #define WEATHER_LAT  "22.54"
 #define WEATHER_LON  "114.05"
@@ -166,14 +170,29 @@ static void renderConfigScreen() {
       uiDrawTextU8g2(vx, 142, cfgLat(), heise);
       cfgTextRight(170, "LON", colEnd);
       uiDrawTextU8g2(vx, 170, cfgLon(), heise);
-      // 固件信息：来源/版本 + 时间/标识（两行，避免超宽被裁切）
-      char fwVer[40], fwInfo[40];
-      snprintf(fwVer,  sizeof(fwVer),  "FW %s",   FW_VERSION);
-      snprintf(fwInfo, sizeof(fwInfo), "Built: %s", FW_BUILT);
-      uiDrawTextU8g2(16, 192, fwVer,  heise);
-      uiDrawTextU8g2(16, 210, fwInfo, heise);
-      uiDrawTextU8g2(16, 232, "Browse to IP to configure", heise);
-      uiDrawTextU8g2(16, 252, "WiFi stays connected", heise);
+
+      // 右栏设备信息卡（左右分栏，右栏 x=200 起；日期/时间/固件各占一行）
+      const int rx = 200, ry = 30;
+      uiDrawTextU8g2(rx, ry, "DEVICE", heise);
+      uint32_t sec = timeClient.getEpochTime();
+      if (!timeClient.isTimeSet()) sec = 0;
+      char dateLine[24], timeLine[12], verLine[40], builtLine[40];
+      if (sec == 0) { strcpy(dateLine, "--"); strcpy(timeLine, "--:--"); }
+      else {
+        time_t t = sec;
+        sprintf(dateLine, "%04d-%02d-%02d", year(t), month(t), day(t));
+        sprintf(timeLine, "%02d:%02d:%02d", hour(t), minute(t), second(t));
+      }
+      snprintf(verLine,   sizeof(verLine),  "%s",   FW_VERSION);
+      snprintf(builtLine, sizeof(builtLine), "%s",   FW_BUILT);
+      uiDrawTextU8g2(rx, ry + 30, "DATE:", heise);
+      uiDrawTextU8g2(rx + 56, ry + 30, dateLine, heise);
+      uiDrawTextU8g2(rx, ry + 52, "TIME:", heise);
+      uiDrawTextU8g2(rx + 56, ry + 52, timeLine, heise);
+      uiDrawTextU8g2(rx, ry + 78, "FW:",   heise);
+      uiDrawTextU8g2(rx + 56, ry + 78, verLine,   heise);
+      uiDrawTextU8g2(rx, ry + 98, "BLT:",  heise);
+      uiDrawTextU8g2(rx + 56, ry + 98, builtLine, heise);
     }
     drawFooter();   // 底部统一样式（footer.h）
   } while (display.nextPage());
