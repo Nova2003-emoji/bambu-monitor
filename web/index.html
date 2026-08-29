@@ -36,7 +36,7 @@ input:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(37,
 .src{display:flex;gap:8px;margin-bottom:10px}
 .src button{flex:1;padding:9px;font-size:13px;background:#fff;border:1px solid var(--line);color:var(--sub)}
 .src button.on{border-color:var(--brand);color:var(--brand);background:#eff6ff;font-weight:700}
-select{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:14px}
+select{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:14px;font-family:ui-monospace,Consolas,monospace}
 .mode{display:flex;gap:8px;margin-top:10px}
 .mode label{flex:1;display:flex;align-items:flex-start;gap:6px;margin:0;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:12px;font-weight:400;color:#555;cursor:pointer;line-height:1.5}
 .mode input{margin-top:2px}
@@ -453,15 +453,24 @@ fetch('firmware/index.json?t=' + Date.now(), { cache: 'no-store' })
     for (const v of list){
       const o = document.createElement('option');
       o.value = v.version;
-      // ISO UTC → "YYYY-MM-DD HH:MM:SS UTC+8"
+      // ISO UTC → "YYYY-MM-DD HH:MM:SS UTC+8"（本地时区）；版本号补齐对齐
       let dt = '';
+      let tz = '';
       if (v.published) {
         const d = new Date(v.published);
         const p2 = n => String(n).padStart(2, '0');
+        const off = -d.getTimezoneOffset();
+        const sign = off >= 0 ? '+' : '-';
+        const oh = Math.floor(Math.abs(off) / 60), om = Math.abs(off) % 60;
+        tz = ' UTC' + sign + p2(oh) + (om ? ':' + p2(om) : '');
         dt = '  ·  ' + d.getFullYear() + '-' + p2(d.getMonth()+1) + '-' + p2(d.getDate()) +
-             ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes()) + ':' + p2(d.getSeconds());
+             ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes()) + ':' + p2(d.getSeconds()) + tz;
       }
-      o.textContent = v.version + dt;
+      // 版本号补齐到 v0.0.XX 宽度，保证时间列对齐
+      const ver = v.version.replace(/^v/, '');
+      const parts = ver.split('.');
+      const verPad = 'v' + parts.map((n,i) => i === parts.length-1 ? String(n).padStart(2,'0') : n).join('.');
+      o.textContent = verPad + dt;
       sel.appendChild(o);
     }
     log('历史固件 ' + list.length + ' 个版本可用');
